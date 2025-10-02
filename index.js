@@ -42,7 +42,7 @@ app.post("/api/ask", async (req, res) => {
 1️⃣ Sign up for the training cohort.  
 2️⃣ Actively complete the weekly tasks and challenges.  
 3️⃣ Collaborate with others on real-world projects.  
-4️⃣ Top performers are selected for **paid internships** with partner companies — just like HNG does it.  
+4️⃣ Top performers are selected for **paid internships** with partner companies.  
 
 👉 Stay consistent, keep building, and you’ll unlock internship opportunities.`,
     });
