@@ -8,7 +8,7 @@ app.use(express.json());
 const corsOptions = {
   origin: [
     "http://localhost:5173",  // React dev server
-    "https://yourfrontend.vercel.app" // production frontend
+    "https://somep.vercel.app" // production frontend
   ],
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type", "Authorization"],
