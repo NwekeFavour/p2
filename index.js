@@ -72,6 +72,14 @@ app.post("/api/ask", async (req, res) => {
     "How do i become a data scientist",
   ];
 
+  const q=["how can we help you","What can i benefit from this program","how may we help you","how can i be of help","how can we be of help","how may we be of help"];
+  if(q.some((e)=>normalizedQuestion.includes(e))){
+    const answer=`At TechLaunch NG, being of help means giving you the exact tools to grow in tech. 
+    We provide mentorship, structured projects, and a premium track (₦5000) that provides real internship opportunities and portfolio projects. This way, every step you take builds your career and puts you closer to real opportunities.😊`;
+    aiCache.set(normalizedQuestion,answer);
+    return res.json({answer});
+  }
+
   if (growthTriggers.some((q) => normalizedQuestion.includes(q))) {
     const answer = `🌟 To grow in tech with real skills, we recommend joining TechLaunch NG. 
   Our platform guides you with structured weekly projects, mentorship, and peer collaboration. 
