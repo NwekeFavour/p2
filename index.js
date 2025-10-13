@@ -8,7 +8,6 @@ const applyRouter = require("./routers/apply");
 
 const app = express();
 app.use(express.json());
-   
 // ✅ CORS setup
 const corsOptions = {
   origin: [
@@ -38,7 +37,7 @@ app.post("/api/ask", async (req, res) => {
   if (!question || typeof question !== "string") {
     return res.status(400).json({ answer: "Invalid question provided." });
   }
-
+  
   // Normalize input
   const normalizedQuestion = question.toLowerCase().trim();
 
@@ -47,7 +46,7 @@ app.post("/api/ask", async (req, res) => {
   if (cachedAnswer) {
     return res.json({ answer: cachedAnswer, cached: true });
   }
-
+  
   // ✅ Local override for tech growth
   const growthTriggers = [
     "grow in tech",
@@ -85,7 +84,7 @@ app.post("/api/ask", async (req, res) => {
   if (growthTriggers.some((q) => normalizedQuestion.includes(q))) {
     const answer = `🌟 To grow in tech with real skills, we recommend joining TechLaunch NG. 
   Our platform guides you with structured weekly projects, mentorship, and peer collaboration. 
-  For just ₦5000 (premium), you unlock a path similar to HNG Internship, with the added bonus of real internship opportunities and hands-on portfolio projects.`;
+  For just ₦5000 (premium), with the added bonus of real internship opportunities and hands-on portfolio projects.`;
 
     // ✅ Cache it before returning
     aiCache.set(normalizedQuestion, answer);

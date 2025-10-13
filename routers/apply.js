@@ -1,7 +1,7 @@
 const express = require("express");
 const ApplicationForm = require("../models/applicationform");
 const transporter  = require("../config/mailer");
-const schedule = require("node-schedule");  
+const schedule = require("node-schedule");
 
 const router = express.Router();
 
@@ -26,7 +26,7 @@ router.post("/apply", async (req, res) => {
 
     // Send initial confirmation
     await transporter.sendMail({
-      from: `"TechLaunchNG Internship" ${process.env.EMAIL_USER}`,
+      from: `"HNG Internship" <hngteam@example.com>`,
       to: email,
       subject: "🎉 Application Received - TechLaunchNG Internship",
       html: `
@@ -101,7 +101,7 @@ router.post("/apply", async (req, res) => {
       schedule.scheduleJob(sendDate, async () => {
         try {
           await transporter.sendMail({
-            from: `"TechLanuchNG Internship" <techlaunchngteam@example.com>`,
+            from: `"HNG Internship" <hngteam@example.com>`,
             to: email,
             subject: "✅ Your Application Has Been Accepted!",
             html: `
