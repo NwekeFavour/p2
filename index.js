@@ -8,7 +8,7 @@ const applyRouter = require("./routers/apply");
 
 const app = express();
 app.use(express.json());
-
+   
 // ✅ CORS setup
 const corsOptions = {
   origin: [
