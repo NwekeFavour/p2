@@ -63,7 +63,7 @@ router.post("/apply", async (req, res) => {
              </p>
 
              <div style="text-align: center; margin: 25px 0;">
-               <a href="https://skdfjgfkgd/" style="
+               <a href="https://somep.vercel.app/" style="
                  background-color: #0ea5e9;
                  color: #ffffff;
                  text-decoration: none;
