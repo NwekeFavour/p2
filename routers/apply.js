@@ -26,7 +26,7 @@ router.post("/apply", async (req, res) => {
 
     // Send initial confirmation
     await transporter.sendMail({
-      from: `"TechLaunchNG Internship" <techlaunchngteam@example.com>`,
+      from: `"TechLaunchNG Internship" ${process.env.EMAIL_USER}`,
       to: email,
       subject: "🎉 Application Received - TechLaunchNG Internship",
       html: `
