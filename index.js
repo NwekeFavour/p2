@@ -3,6 +3,8 @@ const express = require("express");
 const cors = require("cors");
 const NodeCache = require("node-cache");
 const rateLimit = require("express-rate-limit");
+const connectDB = require("./config/db");
+const applyRouter = require("./routers/apply");
 
 const app = express();
 app.use(express.json());
@@ -150,7 +152,9 @@ app.post("/api/ask", async (req, res) => {
   }
 });
 
+app.use("/api/applications", applyRouter);
 
+connectDB();
 app.listen(5000, () =>
   console.log("✅ Server running on http://localhost:5000")
 );
