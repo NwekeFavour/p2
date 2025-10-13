@@ -26,7 +26,7 @@ router.post("/apply", async (req, res) => {
 
     // Send initial confirmation
     await transporter.sendMail({
-      from: `"HNG Internship" <hngteam@example.com>`,
+      from: `"TechLaunchNG Internship" <hngteam@example.com>`,
       to: email,
       subject: "🎉 Application Received - TechLaunchNG Internship",
       html: `
@@ -101,7 +101,7 @@ router.post("/apply", async (req, res) => {
       schedule.scheduleJob(sendDate, async () => {
         try {
           await transporter.sendMail({
-            from: `"HNG Internship" <hngteam@example.com>`,
+            from: `"TechLaunchNG Internship" <hngteam@example.com>`,
             to: email,
             subject: "✅ Your Application Has Been Accepted!",
             html: `
