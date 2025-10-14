@@ -7,6 +7,28 @@ const router = express.Router();
 
 // Create new application
 
+//get for apply
+
+router.get("/apply", async (req, res) => {
+  try {
+    const { package } = req.query;
+
+    let query = {};
+    if (package) query.package = package.toLowerCase(); // e.g. ?level=premium
+
+    const applications = await ApplicationForm.find(query);
+
+    res.status(200).json({
+      success: true,
+      count: applications.length,
+      data: applications,
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 
 router.post("/apply", async (req, res) => {
   try {
@@ -137,6 +159,33 @@ router.post("/apply", async (req, res) => {
       message: "Error submitting application",
       error: error.message,
     });
+  }
+});
+
+
+router.get("/stats", async (req, res) => {
+  try {
+    const totalUsers = await ApplicationForm.countDocuments();
+    const premiumUsers = await ApplicationForm.countDocuments({ package: "premium" });
+    const freeUsers = await ApplicationForm.countDocuments({ package: "free" });
+
+    const lastWeek = new Date();
+    lastWeek.setDate(lastWeek.getDate() - 7);
+    const newUsers = await ApplicationForm.countDocuments({ createdAt: { $gte: lastWeek } });
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalUsers,
+        premiumUsers,
+        freeUsers,
+        newUsers,
+        conversionRate: ((premiumUsers / totalUsers) * 100).toFixed(2) + "%",
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching stats:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
