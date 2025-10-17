@@ -32,7 +32,7 @@ router.get("/apply", async (req, res) => {
 
 router.post("/apply", async (req, res) => {
   try {
-    const { email, fname, lname, level } = req.body; // level = 'premium' or 'free'
+    const { email, fname, lname, package } = req.body; // level = 'premium' or 'free'
 
     // Check if email exists
     const existingApplication = await ApplicationForm.findOne({ email });
@@ -48,7 +48,7 @@ router.post("/apply", async (req, res) => {
 
     // Send initial confirmation
     await transporter.sendMail({
-      from: `"TechLaunchNG Internship" <hngteam@example.com>`,
+      from: `"TechLaunchNG Internship" <techlaunchngteam@example.com>`,
       to: email,
       subject: "🎉 Application Received - TechLaunchNG Internship",
       html: `
@@ -116,14 +116,14 @@ router.post("/apply", async (req, res) => {
     });
 
     // 🕒 Schedule acceptance email only for free users
-    if (level === "free") {
+    if (package.toLowerCase() === "free") {
       const sendDate = new Date();
-      sendDate.setDate(sendDate.getDate() + 2); // send after 2 days
+      sendDate.setDate(sendDate.getDate() + 2);  
 
       schedule.scheduleJob(sendDate, async () => {
         try {
           await transporter.sendMail({
-            from: `"TechLaunchNG Internship" <hngteam@example.com>`,
+            from: `"TechLaunchNG Internship" <techlaunchngteam@example.com>`,
             to: email,
             subject: "✅ Your Application Has Been Accepted!",
             html: `
