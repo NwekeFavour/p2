@@ -5,8 +5,17 @@ const NodeCache = require("node-cache");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const applyRouter = require("./routers/apply");
-
 const app = express();
+
+
+// ✅ Rate limiting (100 requests per 15 min per IP)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 100,
+  message: { answer: "Too many requests. Please try again later." }
+});
+app.use(limiter);
+
 app.use(express.json());
 // ✅ CORS setup
 const corsOptions = {
@@ -19,13 +28,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// ✅ Rate limiting (100 requests per 15 min per IP)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
-  max: 100,
-  message: { answer: "Too many requests. Please try again later." }
-});
-app.use(limiter);
+
 
 // ✅ Cache setup (5 mins TTL)
 const aiCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
