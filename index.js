@@ -7,13 +7,14 @@ const connectDB = require("./config/db");
 const applyRouter = require("./routers/apply");
 const app = express();
 
-
+app.set("trust proxy", 1);
 // ✅ Rate limiting (100 requests per 15 min per IP)
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
+  windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
-  message: { answer: "Too many requests. Please try again later." }
-});
+  keyGenerator: rateLimit.ipKeyGenerator, // ✅ Handles both IPv4 and IPv6 correctly
+  message: { answer: "Too many requests. Please try again later." },
+})
 app.use(limiter);
 
 app.use(express.json());
@@ -25,10 +26,9 @@ const corsOptions = {
   ],
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // ✅ only if you're sending cookies or auth headers
 };
 app.use(cors(corsOptions));
-
-
 
 // ✅ Cache setup (5 mins TTL)
 const aiCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
@@ -154,7 +154,7 @@ app.post("/api/ask", async (req, res) => {
   }
 });
 
-app.use("/api/applications", applyRouter);
+app.use("/api/applications", limiter, applyRouter);
 
 connectDB();
 app.listen(5000, () =>
