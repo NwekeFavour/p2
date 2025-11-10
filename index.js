@@ -1,4 +1,13 @@
 require("dotenv").config();
+
+process.on("uncaughtException", (err) => {
+  console.error("❌ Uncaught Exception:", err);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ Unhandled Rejection:", reason);
+});
+
 const express = require("express");
 const cors = require("cors");
 const NodeCache = require("node-cache");
@@ -6,25 +15,45 @@ const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const applyRouter = require("./routers/apply");
 const app = express();
+const helmet = require("helmet")
+const { body, validationResult }  = require("express-validator");
+const fetchRetry = require("fetch-retry")
+const fetchWithRetry = fetchRetry(fetch);
+
 
 app.set("trust proxy", 1);
 // ✅ Rate limiting (100 requests per 15 min per IP)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 100, 
   keyGenerator: rateLimit.ipKeyGenerator, // ✅ Handles both IPv4 and IPv6 correctly
   message: { answer: "Too many requests. Please try again later." },
 })
-app.use(limiter);
+app.use(limiter); 
 
-app.use(express.json());
+const GroqLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5,
+  message: { answer: "Too many AI requests. Try again later." },
+});
+   
+app.use(express.json({ limit: "1mb" }));
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
+    return res.status(400).json({ answer: "Invalid JSON payload." });
+  }
+  next();
+});
+
+app.use(helmet());
+
 // ✅ CORS setup
 const corsOptions = {
   origin: [
     "http://localhost:5173", // React dev server
     "https://somep.vercel.app" // production frontend
   ],
-  methods: ["GET", "POST"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true, // ✅ only if you're sending cookies or auth headers
 };
@@ -33,9 +62,17 @@ app.use(cors(corsOptions));
 // ✅ Cache setup (5 mins TTL)
 const aiCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 
-app.post("/api/ask", async (req, res) => {
+aiCache.flushAll();
+console.log("🧹 Cache cleared on restart");
+//above is incase of anything, to clear cache
+
+app.post("/api/ask", body("question").isString().isLength({ min: 2, max: 300 }), GroqLimiter, async (req, res) => {
+  const errors = validationResult(req);
   const { question } = req.body;
 
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ answer: "Invalid input format." });
+  }
   // Validate input
   if (!question || typeof question !== "string") {
     return res.status(400).json({ answer: "Invalid question provided." });
@@ -78,14 +115,14 @@ app.post("/api/ask", async (req, res) => {
 
   const q=["how can we help you","What can i benefit from this program","how may we help you","how can i be of help","how can we be of help","how may we be of help"];
   if(q.some((e)=>normalizedQuestion.includes(e))){
-    const answer=`At TechLaunch NG, being of help means giving you the exact tools to grow in tech. 
+    const answer=`At Knownly, being of help means giving you the exact tools to grow in tech. 
     We provide mentorship, structured projects, and a premium track (₦5000) that provides real internship opportunities and portfolio projects. This way, every step you take builds your career and puts you closer to real opportunities.😊`;
     aiCache.set(normalizedQuestion,answer);
     return res.json({answer});
   }
 
   if (growthTriggers.some((q) => normalizedQuestion.includes(q))) {
-    const answer = `🌟 To grow in tech with real skills, we recommend joining TechLaunch NG. 
+    const answer = `🌟 To grow in tech with real skills, we recommend joining Knownly. 
   Our platform guides you with structured weekly projects, mentorship, and peer collaboration. 
   For just ₦5000 (premium), with the added bonus of real internship opportunities and hands-on portfolio projects.`;
 
@@ -100,8 +137,10 @@ app.post("/api/ask", async (req, res) => {
     const timeout = setTimeout(() => controller.abort(), 8000);
 
     // ✅ Call Groq API
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const response = await fetchWithRetry("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
+      retries: 2,
+      retryDelay: 1000,
       headers: {
         "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
         "Content-Type": "application/json",

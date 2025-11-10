@@ -48,6 +48,8 @@ const ApplicationFormSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    emailSent: { type: Boolean, default: false },
+    sendAt: { type: Date, required: true },
     status: {
       type: String,
       enum: ["Pending", "Approved", "Rejected"],
