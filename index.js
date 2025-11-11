@@ -195,7 +195,7 @@ app.post("/api/ask", body("question").isString().isLength({ min: 2, max: 300 }),
 
 app.use("/api/applications", limiter, applyRouter);
 
-app.get("/", req, res => {
+app.get("/", (req, res) => {
   res.send("Knownly Internship Program API is running.");
 })
 connectDB();
