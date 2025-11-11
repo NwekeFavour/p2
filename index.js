@@ -192,7 +192,7 @@ app.post("/api/ask", body("question").isString().isLength({ min: 2, max: 300 }),
     res.status(500).json({ answer: "Unexpected server error occurred." });
   }
 });
-
+  
 app.use("/api/applications", limiter, applyRouter);
 
 app.get("/", (req, res) => {
