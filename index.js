@@ -195,6 +195,9 @@ app.post("/api/ask", body("question").isString().isLength({ min: 2, max: 300 }),
 
 app.use("/api/applications", limiter, applyRouter);
 
+app.get("/", req, res => {
+  res.send("Knownly Internship Program API is running.");
+})
 connectDB();
 app.listen(5000, () =>
   console.log("✅ Server running on http://localhost:5000")
