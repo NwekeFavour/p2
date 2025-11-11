@@ -58,6 +58,7 @@ const corsOptions = {
   credentials: true, // ✅ only if you're sending cookies or auth headers
 };
 app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // ✅ Cache setup (5 mins TTL)
 const aiCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
