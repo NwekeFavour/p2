@@ -48,15 +48,14 @@ app.use((err, req, res, next) => {
 app.use(helmet());
 
 // ✅ CORS setup
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://somep.vercel.app"); // exact origin
-  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.header("Access-Control-Allow-Credentials", "true");
-
-  if (req.method === "OPTIONS") return res.sendStatus(200); // handle preflight
-  next();
-});
+const corsOptions = {
+  origin: "https://somep.vercel.app", // production frontend
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // ✅ only if you're sending cookies or auth headers
+};
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // ✅ Cache setup (5 mins TTL)
 const aiCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
