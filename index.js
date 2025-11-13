@@ -14,6 +14,7 @@ const NodeCache = require("node-cache");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const applyRouter = require("./routers/apply");
+const Auth = require("./routers/auth");
 const app = express();
 const helmet = require("helmet")
 const { body, validationResult }  = require("express-validator");
@@ -49,7 +50,7 @@ app.use(helmet());
 
 // ✅ CORS setup
 const corsOptions = {
-  origin: "https://somep.vercel.app", // production frontend
+  origin: ["https://somep.vercel.app", "http://localhost:5173"], // production frontend
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true, // ✅ only if you're sending cookies or auth headers
@@ -189,8 +190,9 @@ app.post("/api/ask", body("question").isString().isLength({ min: 2, max: 300 }),
     res.status(500).json({ answer: "Unexpected server error occurred." });
   }
 });
-  
+ 
 app.use("/api/applications", limiter, applyRouter);
+app.use("/api", limiter, Auth);
 
 app.get("/", (req, res) => {
   res.send("Knownly Internship Program API is running.");
