@@ -233,11 +233,7 @@ router.put("/:id/status", protect, authorize("super-admin", "admin"), async (req
       return res.status(404).json({ success: false, message: "Application not found" });
     }
 
-    res.status(200).json({
-      success: true,
-      message: "Status updated successfully",
-      data: updatedApp,
-    });
+
 
     // Send email
     if (status === "Approved") {
@@ -255,6 +251,12 @@ router.put("/:id/status", protect, authorize("super-admin", "admin"), async (req
         html: rejectedEmail(updatedApp.fname),
       });
     }
+
+    res.status(200).json({
+      success: true,
+      message: "Status updated successfully",
+      data: updatedApp,
+    });
 
 
   } catch (error) {
