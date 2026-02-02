@@ -89,7 +89,7 @@ router.post("/cohorts", protect, authorize("super-admin"), async (req, res) => {
 
 
 // Update cohort (ADMIN only)
-router.patch("/cohorts/:cohortId", authorize("admin"), async (req, res) => {
+router.patch("/cohorts/:cohortId", protect, authorize("admin"), async (req, res) => {
   try {
     const { cohortId } = req.params;
     const updates = req.body;
@@ -405,6 +405,7 @@ router.post("/apply", async (req, res) => {
             padding: 40px 0; 
             display: flex; 
             justify-content: center;
+            items-align: center;
           ">
             <div style="
               background: #ffffff; 
@@ -444,7 +445,7 @@ router.post("/apply", async (req, res) => {
                   <li>🚀 <strong>Networking opportunities</strong> with top-performing interns and mentors.</li>
                 </ul>
                 <div style="text-align: center; margin-top: 20px;">
-                  <a href="https://somep.vercel.app/premium" style="
+                  <a href="https://knownly.tech/premium" style="
                     background-color: #0ea5e9;
                     color: #ffffff;
                     text-decoration: none;
