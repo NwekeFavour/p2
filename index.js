@@ -429,6 +429,26 @@ app.get("/api/health", async (req, res) => {
 });
 app.get("/", (req, res) => res.send("Knownly API Active."));
 
-connectDB().then(() => {
-  app.listen(5000, () => console.log("🚀 Product-Ready Server on Port 5000"));
-});
+// --- 5. STARTUP LOGIC ---
+// This uses process.env.PORT which is required by live hosts (Render, Railway, Heroku)
+const PORT = process.env.PORT || 5000;
+
+const startServer = async () => {
+  try {
+    // 1. Force the app to wait for MongoDB
+    await connectDB();
+    console.log("✅ Database connection established.");
+
+    // 2. Start the Express server only AFTER the DB is ready
+    app.listen(PORT, () => {
+      console.log(`🚀 Knownly Engine Online | Port: ${PORT}`);
+      console.log(`📡 Sis up on slack`);
+    });
+  } catch (err) {
+    console.error("❌ Critical Startup Error:", err.message);
+    // Exit if we can't connect, so the hosting platform knows to reboot the container
+    process.exit(1); 
+  }
+};
+
+startServer();
