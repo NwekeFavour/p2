@@ -17,7 +17,7 @@ const approvedEmail = (name) => `
             <p>Congratulations! 🎉 Your application has been <strong>approved</strong>.</p>
             <p>We are excited to have you join our internship community and start your journey with us.</p>
             <p style="text-align:center; margin: 20px 0;">
-              <a href="https://somep.vercel.app/internships/join" style="
+              <a href="https://knownly.tech/internships/join" style="
                 background-color: #4CAF50;
                 color: #ffffff;
                 padding: 12px 24px;

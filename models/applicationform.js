@@ -31,6 +31,10 @@ const UserSchema = new mongoose.Schema(
       minlength: [6, "Password must be at least 6 characters"],
       select: false, // Don't return password in queries by default
     },
+    assignedCohorts: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Cohort", // This must match the string in mongoose.model("Cohort", ...)
+    }],
     role: {
       type: String,
       enum: ["super-admin", "admin"],
@@ -95,6 +99,16 @@ UserSchema.virtual("fullName").get(function () {
   return `${this.fname} ${this.lname}`;
 });
 
+
+UserSchema.virtual('myCreatedCohorts', {
+  ref: 'Cohort',
+  localField: '_id',
+  foreignField: 'createdBy'
+});
+
+// Set this to ensure virtuals show up in JSON responses
+UserSchema.set('toJSON', { virtuals: true });
+UserSchema.set('toObject', { virtuals: true });
 
 // ==================== PERMISSIONS SCHEMA ====================
 const PermissionSchema = new mongoose.Schema({
@@ -219,6 +233,17 @@ const ApplicationFormSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: [true, "Phone number is required"],
+    },
+    slackUserId: {
+      type: String,
+      default: null,
+      index: true // Makes searching faster
+    },
+    currentStage: {
+      type: Number,
+      default: 1,
+      min: 1,
+      max: 8
     },
     level: {
       type: String,

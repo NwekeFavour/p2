@@ -11,6 +11,8 @@
   "description": "",
   "dependencies": {
     "@sendgrid/mail": "^8.1.1",
+    "@slack/bolt": "^4.6.0",
+    "axios": "^1.13.4",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",

@@ -295,7 +295,7 @@ router.patch("/auth/change-password", authenticate, async (req, res) => {
 // ==================== USER MANAGEMENT ROUTES ====================
 
 // Get all users (Super Admin & Admin)
-router.get("/users", authenticate, authorize("super-admin", "admin"), async (req, res) => {
+router.get("/users", authenticate, authorize("super-admin"), async (req, res) => {
   try {
     const { role, isActive } = req.query;
 
@@ -303,9 +303,9 @@ router.get("/users", authenticate, authorize("super-admin", "admin"), async (req
     if (role) query.role = role;
     if (isActive !== undefined) query.isActive = isActive === "true";
 
-    const users = await User.find(query)
+    const users = await User.find(query)  
       .select("-password")
-      .populate("assignedCohorts", "name")
+      .populate("assignedCohorts", "name startDate isActive")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
