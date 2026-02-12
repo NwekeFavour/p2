@@ -357,6 +357,7 @@ router.post("/apply", async (req, res) => {
       });
     }
 
+
     // Check if cohort exists and is accepting applications
     const cohort = await Cohort.findById(cohortId);
     if (!cohort) {
@@ -385,6 +386,16 @@ router.post("/apply", async (req, res) => {
       });
     }
 
+
+    if (pkg === "Premium") {
+      // We do NOT create a DB entry yet. 
+      // We just tell the frontend: "Validation passed, you are cleared to pay."
+      return res.status(200).json({
+        success: true,
+        shouldPay: true, // Signal for frontend
+        message: "Details validated. Proceeding to payment...",
+      });
+    }
     // Save new application
     const sendAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
     const newApplication = await ApplicationForm.create({
@@ -392,13 +403,12 @@ router.post("/apply", async (req, res) => {
       email,
       fname,
       lname,
-      package: pkg || "free",
+      package: "Free",
       phone,
       level,
       track,
       social,
       university,
-      paymentReference,
       sendAt,
     });
 
@@ -438,7 +448,7 @@ router.post("/apply", async (req, res) => {
             ">
               <div style="text-align: center; margin-bottom: 20px;">
                 <img src="https://knownly.tech/logo.png" alt="Knownly Logo" style="width: 80px; height: auto; margin-bottom: 10px;" />
-                <h1 style="color: #0ea5e9; font-size: 22px; margin: 0;">Knownly Internship</h1>
+                <h1 style="color: #4f39f6; font-size: 22px; margin: 0;">Knownly Internship</h1>
               </div>
 
               <p style="font-size: 16px; color: #111827;">Hi <strong>${fname} ${lname}</strong>,</p>
@@ -458,7 +468,7 @@ router.post("/apply", async (req, res) => {
               <div style="background: #f9fafb; padding: 15px 20px; border-radius: 8px; margin-top: 20px;">
                 <p style="font-size: 14px; color: #0f172a; margin: 0;">
                   💎 <strong>Want to go further?</strong> 
-                  Our <span style="color: #0ea5e9; font-weight: 600;">Premium Track</span> gives you access to:
+                  Our <span style="color: #4f39f6; font-weight: 600;">Premium Track</span> gives you access to:
                 </p>
                 <ul style="font-size: 14px; color: #374151; line-height: 1.6; margin-top: 10px; padding-left: 20px;">
                   <li>🌟 <strong>Exclusive 1-on-1 mentorship sessions</strong> with experienced industry professionals.</li>
@@ -467,7 +477,7 @@ router.post("/apply", async (req, res) => {
                 </ul>
                 <div style="text-align: center; margin-top: 20px;">
                   <a href="https://knownly.tech/premium" style="
-                    background-color: #0ea5e9;
+                    background-color: #4f39f6;
                     color: #ffffff;
                     text-decoration: none;
                     padding: 12px 22px;
@@ -654,10 +664,17 @@ router.get("/:cohortId/incubees", protect,  async (req, res) => {
 router.get("/cohorts/:cohortId/submissions", protect, authorize("admin"), async (req, res) => {
   try {
     const { cohortId } = req.params;
+
+    if (!cohortId || !mongoose.Types.ObjectId.isValid(cohortId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid or missing cohortId" 
+      });
+    }
+
     const adminExpertise = req.user.expertise; // e.g., ["Frontend"]
 
-    // 1. Convert ["Frontend", "UI"] into a regex: /Frontend|UI/i
-    // The 'i' flag makes it case-insensitive
+    // Convert ["Frontend", "UI"] into regex: /Frontend|UI/i
     const expertiseRegex = new RegExp(adminExpertise.join('|'), 'i');
 
     const submissions = await Submission.find()
@@ -665,10 +682,9 @@ router.get("/cohorts/:cohortId/submissions", protect, authorize("admin"), async 
         path: 'application',
         match: { 
           cohort: cohortId,
-          // 2. Use the regex to match "Frontend" inside "Frontend Development"
           track: { $regex: expertiseRegex } 
         },
-        select: 'fname lname email track'
+        select: 'fname lname email track package status'
       })
       .sort({ createdAt: -1 });
 
@@ -679,7 +695,9 @@ router.get("/cohorts/:cohortId/submissions", protect, authorize("admin"), async 
       count: filteredSubmissions.length,
       data: filteredSubmissions
     });
+
   } catch (error) {
+    console.error(error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

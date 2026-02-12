@@ -5,7 +5,7 @@ const approvedEmail = (name) => `
       <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 10px; overflow: hidden;">
         <!-- Header / Logo -->
         <tr>
-          <td align="center" style="background-color: #4CAF50; padding: 30px;">
+          <td align="center" style="background-color: #4f39f6; padding: 30px;">
             <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Internship Program</h1>
           </td>
         </tr>
@@ -18,7 +18,7 @@ const approvedEmail = (name) => `
             <p>We are excited to have you join our internship community and start your journey with us.</p>
             <p style="text-align:center; margin: 20px 0;">
               <a href="https://knownly.tech/internships/join" style="
-                background-color: #4CAF50;
+                background-color: #4f39f6;
                 color: #ffffff;
                 padding: 12px 24px;
                 text-decoration: none;

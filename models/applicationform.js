@@ -264,8 +264,8 @@ const ApplicationFormSchema = new mongoose.Schema(
     },
     package: {
       type: String,
-      enum: ["Free", "Premium"],
-      default: "free",
+      enum: ["Free", "Premium", "Pro"],
+      default: "Free",
     },
     paymentReference: {
       type: String,
@@ -299,6 +299,7 @@ const ApplicationFormSchema = new mongoose.Schema(
       max: 100,
       default: 0,
     },
+    completed: { type: Boolean, default: false },
     completedTasks: {
       type: Number,
       default: 0,

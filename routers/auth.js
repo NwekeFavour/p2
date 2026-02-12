@@ -1,9 +1,13 @@
-require('dotenv').config();
+require("dotenv").config();
 
 const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
-const { User, Permission, ApplicationForm } = require("../models/applicationform");
+const {
+  User,
+  Permission,
+  ApplicationForm,
+} = require("../models/applicationform");
 
 // ==================== MIDDLEWARE ====================
 
@@ -11,7 +15,7 @@ const { User, Permission, ApplicationForm } = require("../models/applicationform
 const authenticate = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.replace("Bearer ", "");
-    
+
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -21,7 +25,7 @@ const authenticate = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id).select("-password");
-    
+
     if (!user || !user.isActive) {
       return res.status(401).json({
         success: false,
@@ -99,14 +103,14 @@ const checkPermission = (resource, action) => {
   return async (req, res, next) => {
     try {
       const permission = await Permission.findOne({ role: req.user.role });
-      
+
       if (!permission || !permission.permissions[resource]?.[action]) {
         return res.status(403).json({
           success: false,
           message: `You do not have permission to ${action} ${resource}.`,
         });
       }
-      
+
       next();
     } catch (error) {
       res.status(500).json({
@@ -122,7 +126,16 @@ const checkPermission = (resource, action) => {
 // Register (Super Admin only - for creating other admins/mentors)
 router.post("/auth/register", async (req, res) => {
   try {
-    const { fname, lname, email, password, role, phone, expertise, maxInterns } = req.body;
+    const {
+      fname,
+      lname,
+      email,
+      password,
+      role,
+      phone,
+      expertise,
+      maxInterns,
+    } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -179,7 +192,7 @@ router.post("/auth/login", async (req, res) => {
 
     // Find user with password
     const user = await User.findOne({ email }).select("+password");
-    
+
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -211,7 +224,7 @@ router.post("/auth/login", async (req, res) => {
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     // Remove password from response
@@ -237,7 +250,7 @@ router.post("/auth/login", async (req, res) => {
 router.get("/auth/me", authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -258,14 +271,13 @@ router.get("/auth/me", authenticate, async (req, res) => {
   }
 });
 
-
 // Change password
 router.patch("/auth/change-password", authenticate, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
     const user = await User.findById(req.user._id).select("+password");
-    
+
     // Verify current password
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
@@ -295,161 +307,185 @@ router.patch("/auth/change-password", authenticate, async (req, res) => {
 // ==================== USER MANAGEMENT ROUTES ====================
 
 // Get all users (Super Admin & Admin)
-router.get("/users", authenticate, authorize("super-admin"), async (req, res) => {
-  try {
-    const { role, isActive } = req.query;
+router.get(
+  "/users",
+  authenticate,
+  authorize("super-admin"),
+  async (req, res) => {
+    try {
+      const { role, isActive } = req.query;
 
-    let query = {};
-    if (role) query.role = role;
-    if (isActive !== undefined) query.isActive = isActive === "true";
+      let query = {};
+      if (role) query.role = role;
+      if (isActive !== undefined) query.isActive = isActive === "true";
 
-    const users = await User.find(query)  
-      .select("-password")
-      .populate("assignedCohorts", "name startDate isActive")
-      .sort({ createdAt: -1 });
+      const users = await User.find(query)
+        .select("-password")
+        .populate("assignedCohorts", "name startDate isActive")
+        .sort({ createdAt: -1 });
 
-    res.status(200).json({
-      success: true,
-      count: users.length,
-      data: users,
-    });
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching users.",
-    });
-  }
-});
+      res.status(200).json({
+        success: true,
+        count: users.length,
+        data: users,
+      });
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error fetching users.",
+      });
+    }
+  },
+);
 
 // Get single user
-router.get("/users/:userId", authenticate, authorize("super-admin", "admin"), async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userId)
-      .select("-password")
-      .populate("assignedCohorts", "name")
-      .populate("assignedInterns", "fname lname email track status");
+router.get(
+  "/users/:userId",
+  authenticate,
+  authorize("super-admin", "admin"),
+  async (req, res) => {
+    try {
+      const user = await User.findById(req.params.userId)
+        .select("-password")
+        .populate("assignedCohorts", "name")
+        .populate("assignedInterns", "fname lname email track status");
 
-    if (!user) {
-      return res.status(404).json({
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found.",
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({
         success: false,
-        message: "User not found.",
+        message: "Error fetching user.",
       });
     }
-
-    res.status(200).json({
-      success: true,
-      data: user,
-    });
-  } catch (error) {
-    console.error("Error fetching user:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching user.",
-    });
-  }
-});
+  },
+);
 
 // Update user (Super Admin only)
-router.patch("/users/:userId", authenticate, authorize("super-admin"), async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const updates = req.body;
+router.patch(
+  "/users/:userId",
+  authenticate,
+  authorize("super-admin"),
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const updates = req.body;
 
-    // Don't allow password updates through this route
-    delete updates.password;
+      // Don't allow password updates through this route
+      delete updates.password;
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      updates,
-      { new: true, runValidators: true }
-    ).select("-password");
+      const user = await User.findByIdAndUpdate(userId, updates, {
+        new: true,
+        runValidators: true,
+      }).select("-password");
 
-    if (!user) {
-      return res.status(404).json({
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found.",
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "User updated successfully.",
+        data: user,
+      });
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(400).json({
         success: false,
-        message: "User not found.",
+        message: "Error updating user.",
+        error: error.message,
       });
     }
-
-    res.status(200).json({
-      success: true,
-      message: "User updated successfully.",
-      data: user,
-    });
-  } catch (error) {
-    console.error("Error updating user:", error);
-    res.status(400).json({
-      success: false,
-      message: "Error updating user.",
-      error: error.message,
-    });
-  }
-});
+  },
+);
 
 // Deactivate/Activate user (Super Admin only)
-router.patch("/users/:userId/toggle-active", authenticate, authorize("super-admin"), async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userId);
-    
-    if (!user) {
-      return res.status(404).json({
+router.patch(
+  "/users/:userId/toggle-active",
+  authenticate,
+  authorize("super-admin"),
+  async (req, res) => {
+    try {
+      const user = await User.findById(req.params.userId);
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found.",
+        });
+      }
+
+      user.isActive = !user.isActive;
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: `User ${user.isActive ? "activated" : "deactivated"} successfully.`,
+        data: { isActive: user.isActive },
+      });
+    } catch (error) {
+      console.error("Error toggling user status:", error);
+      res.status(500).json({
         success: false,
-        message: "User not found.",
+        message: "Error updating user status.",
       });
     }
-
-    user.isActive = !user.isActive;
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: `User ${user.isActive ? "activated" : "deactivated"} successfully.`,
-      data: { isActive: user.isActive },
-    });
-  } catch (error) {
-    console.error("Error toggling user status:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error updating user status.",
-    });
-  }
-});
+  },
+);
 
 // Delete user (Super Admin only)
-router.delete("/users/:userId", authenticate, authorize("super-admin"), async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userId);
-    
-    if (!user) {
-      return res.status(404).json({
+router.delete(
+  "/users/:userId",
+  authenticate,
+  authorize("super-admin"),
+  async (req, res) => {
+    try {
+      const user = await User.findById(req.params.userId);
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found.",
+        });
+      }
+
+      // Don't allow super-admin to delete themselves
+      if (user._id.toString() === req.user._id.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: "You cannot delete your own account.",
+        });
+      }
+
+      await user.deleteOne();
+
+      res.status(200).json({
+        success: true,
+        message: "User deleted successfully.",
+      });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({
         success: false,
-        message: "User not found.",
+        message: "Error deleting user.",
       });
     }
-
-    // Don't allow super-admin to delete themselves
-    if (user._id.toString() === req.user._id.toString()) {
-      return res.status(400).json({
-        success: false,
-        message: "You cannot delete your own account.",
-      });
-    }
-
-    await user.deleteOne();
-
-    res.status(200).json({
-      success: true,
-      message: "User deleted successfully.",
-    });
-  } catch (error) {
-    console.error("Error deleting user:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error deleting user.",
-    });
-  }
-});
+  },
+);
 
 // ==================== MENTOR MANAGEMENT ====================
 
@@ -481,44 +517,48 @@ router.get("/admin", authenticate, async (req, res) => {
   }
 });
 
-
-
 // Update intern progress (Mentor only)
-router.patch("/interns/:internId/progress", authenticate, authorize( "admin", "super-admin"), async (req, res) => {
-  try {
-    const { internId } = req.params;
-    const { progress, completedTasks, totalTasks, reviewNotes } = req.body;
+router.patch(
+  "/interns/:internId/progress",
+  authenticate,
+  authorize("admin", "super-admin"),
+  async (req, res) => {
+    try {
+      const { internId } = req.params;
+      const { progress, completedTasks, totalTasks, reviewNotes } = req.body;
 
-    const intern = await ApplicationForm.findById(internId);
+      const intern = await ApplicationForm.findById(internId);
 
-    if (!intern) {
-      return res.status(404).json({
+      if (!intern) {
+        return res.status(404).json({
+          success: false,
+          message: "Intern not found.",
+        });
+      }
+
+      // Update progress
+      if (progress !== undefined) intern.progress = progress;
+      if (completedTasks !== undefined) intern.completedTasks = completedTasks;
+      if (totalTasks !== undefined) intern.totalTasks = totalTasks;
+      if (reviewNotes !== undefined) intern.reviewNotes = reviewNotes;
+
+      await intern.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Intern progress updated successfully.",
+        data: intern,
+      });
+    } catch (error) {
+      console.error("Error updating intern progress:", error);
+      res.status(500).json({
         success: false,
-        message: "Intern not found.",
+        message: "Error updating progress.",
       });
     }
+  },
+);
 
-    // Update progress
-    if (progress !== undefined) intern.progress = progress;
-    if (completedTasks !== undefined) intern.completedTasks = completedTasks;
-    if (totalTasks !== undefined) intern.totalTasks = totalTasks;
-    if (reviewNotes !== undefined) intern.reviewNotes = reviewNotes;
-
-    await intern.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Intern progress updated successfully.",
-      data: intern,
-    });
-  } catch (error) {
-    console.error("Error updating intern progress:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error updating progress.",
-    });
-  }
-});
 
 module.exports = router;
 module.exports.authenticate = authenticate;
