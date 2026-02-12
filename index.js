@@ -240,7 +240,7 @@ app.use("/api", express.json());
 app.use("/api", apiLimiter);
 
 const corsOptions = {
-  origin: ["https://knownly.tech", "http://localhost:5173"],
+  origin: ["https://knownly.tech", "http://localhost:5173", "https://www.knownly.tech"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   credentials: true,
 };
