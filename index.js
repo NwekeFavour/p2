@@ -50,7 +50,23 @@ const app = receiver.app;
 app.set("trust proxy", 1);
 
 // --- 2. GLOBAL MIDDLEWARE STRATEGY ---
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        // Allowed script sources
+        scriptSrc: ["'self'", "https://js.paystack.co", "https://unpkg.com"],
+        // Allowed style sources (AOS needs this for its CSS)
+        styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com"],
+        // Allowed connection sources (for Paystack API calls)
+        connectSrc: ["'self'", "https://api.paystack.co"],
+        // Allowed image sources (if you host cert images or logos elsewhere)
+        imgSrc: ["'self'", "data:", "https:"],
+      },
+    },
+  })
+);
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
