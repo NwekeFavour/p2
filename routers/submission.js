@@ -6,6 +6,10 @@ const { protect, authorize } = require("./auth");
 const { default: mongoose } = require("mongoose");
 const { sendSlackNotification } = require("../utils/slack");
 const { transporter } = require("../config/mailer");
+const fs = require('fs');
+const { Resend } = require('resend');
+// Initialize Resend with your API Key
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // @desc    Update submission status and feedback
 // @route   PATCH /api/submissions/:id
@@ -16,14 +20,12 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
 
   try {
     session.startTransaction();
- 
     const { status, feedback } = req.body;
 
-    // 1. Fetch submission with full application context
+    // 1. Fetch submission and application context
     const oldSubmission = await Submission.findById(req.params.id)
       .populate({
         path: "application",
-        // Added email and track for certificate generation
         select: "fname lname email track currentStage progress cohort package completed slackUserId",
       })
       .session(session);
@@ -32,12 +34,11 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
     const app = oldSubmission.application;
     if (!app) throw new Error("APPLICATION_NOT_FOUND");
 
-    // 2. Update submission
+    // 2. Update status and Audit Log
     oldSubmission.status = status;
     oldSubmission.feedback = feedback;
     await oldSubmission.save({ session });
 
-    // 3. Audit log
     await AuditLog.create([{
       admin: req.user._id,
       submission: oldSubmission._id,
@@ -45,25 +46,20 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
       details: { oldStatus: oldSubmission.status, newStatus: status, feedbackProvided: feedback },
     }], { session });
 
-    // 4. Handle Progression & Completion
+    // 3. Handle Progression & Completion Logic
     let slackMessage = "";
 
     if (status === "Accepted") {
       const isFinalStage = app.currentStage === 8;
 
       if (isFinalStage && !app.completed) {
-        // --- COMPLETION LOGIC ---
         app.completed = true;
         app.progress = 100;
         
         const isPaid = ["Premium", "Premium Pro"].includes(app.package);
-        
-        slackMessage = `🎓 *CONGRATULATIONS ${app.fname}!* 🎉\n\n` +
-                       `Admin has approved your final project. You have officially completed the ${app.track} program!\n` +
-                       `💬 *Feedback:* _"${feedback || "Outstanding work on your final audit!"}"_`;
+        slackMessage = `🎓 *CONGRATULATIONS ${app.fname}!* 🎉\nAdmin approved your final project!`;
 
         if (isPaid) {
-          // Trigger Certificate (Ensuring this happens inside the transaction)
           const Certificate = require("../models/certificate");
           const generateCertificateId = require("../utils/generateCertificateId");
           const generateCertificatePDF = require("../utils/generateCertificatePDF");
@@ -72,7 +68,7 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
 
           if (!existingCert) {
             const certificateId = generateCertificateId();
-            const cert = await Certificate.create([{
+            await Certificate.create([{
               application: app._id,
               certificateId,
               cohort: app.cohort,
@@ -80,7 +76,7 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
               level: app.package,
             }], { session });
 
-            // Generate PDF (Note: Do this after commit or handle carefully as it's an FS operation)
+            // Generate PDF (Save path to send after session commit)
             const pdfPath = await generateCertificatePDF({
               certificateId,
               name: `${app.fname} ${app.lname}`,
@@ -88,52 +84,65 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
               level: app.package,
             });
 
-            // Note: Email sending should typically happen AFTER commit, 
-            // we'll flag it for post-transaction execution.
             oldSubmission.shouldSendCertEmail = { path: pdfPath, id: certificateId, email: app.email };
-            
-            slackMessage += `\n\n💎 *Premium Benefit:* Your verified certificate has been generated and sent to your email!`;
+            slackMessage += `\n\n💎 Your verified certificate has been sent to your email!`;
           }
         } else {
-          slackMessage += `\n\n👏 You've completed the Free track! Upgrade in the next cohort to earn a verified certificate.`;
+          slackMessage += `\n\n👏 You've completed the Free track!`;
         }
-
       } else if (app.currentStage < 8) {
-        // --- NORMAL PROGRESSION ---
         app.currentStage += 1;
         app.progress = Math.round((app.currentStage / 8) * 100);
-        
-        slackMessage = `🎉 *Congratulations ${app.fname}!* Your submission was accepted.\n` +
-                       `🚀 You have advanced to *Stage ${app.currentStage}*.\n` +
-                       `💬 *Admin Feedback:* _"${feedback || "Keep up the great momentum!"}"_`;
+        slackMessage = `🎉 *Congratulations ${app.fname}!* Advanced to Stage ${app.currentStage}.`;
       }
-      
       await app.save({ session });
 
     } else if (status === "Needs Revision") {
-      slackMessage = `📝 *Revision Required for ${app.fname}:*\n` +
-                     `Your Stage ${app.currentStage} submission needs some tweaks.\n` +
-                     `💬 *Feedback:* _"${feedback}"_`;
+      slackMessage = `📝 *Revision Required for ${app.fname}:*\n💬 Feedback: _"${feedback}"_`;
     }
 
+    // 4. Commit Transaction
     await session.commitTransaction();
     transactionCommitted = true;
     session.endSession();
 
-    // 5. Post-Transaction Actions (Notifications & Emails)
+    // 5. Post-Transaction Actions (Awaited for Serverless reliability)
     if (slackMessage && app.slackUserId) {
-      sendSlackNotification(app.slackUserId, slackMessage).catch(console.error);
+      await sendSlackNotification(app.slackUserId, slackMessage).catch(console.error);
     }
 
+    // --- CERTIFICATE EMAIL LOGIC ---
     if (oldSubmission.shouldSendCertEmail) {
-      const { path, id, email } = oldSubmission.shouldSendCertEmail;
-      // Send the mail using your transporter
-      transporter.sendMail({
-        from: `"Knownly Certificates" <suppor@knownly.tech>`,
-        to: email,
-        subject: "🎓 Your Knownly Certificate",
-        attachments: [{ filename: `${id}.pdf`, path: path }],
-      }).catch(err => console.error("Certificate Email Failed:", err));
+      const { path: filePath, id, email } = oldSubmission.shouldSendCertEmail;
+      
+      try {
+        // Use fs.promises for non-blocking I/O
+        const fs = require('fs').promises;
+        const fileContent = await fs.readFile(filePath);
+
+        await resend.emails.send({
+          from: '"Knownly Certificates" <support@knownly.tech>',
+          to: [email],
+          subject: "🎓 Your Knownly Certificate",
+          attachments: [{
+            filename: `Knownly_Certificate_${id}.pdf`,
+            content: fileContent,
+          }],
+          html: `
+            <div style="font-family: sans-serif; color: #333;">
+              <h2>Congratulations ${app.fname}!</h2>
+              <p>Your official Knownly Internship certificate is attached to this email.</p>
+              <p>Best regards,<br /><strong>The Knownly Team</strong></p>
+            </div>`,
+        });
+
+        console.log("✅ Certificate sent via Resend");
+
+        // CLEANUP: Delete PDF from /tmp after sending
+        await fs.unlink(filePath).catch(err => console.error("Cleanup error:", err));
+      } catch (mailErr) {
+        console.error("❌ Certificate Email Failed:", mailErr.message);
+      }
     }
 
     return res.status(200).json({ success: true, data: oldSubmission });

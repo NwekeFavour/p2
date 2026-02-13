@@ -6,6 +6,9 @@ const NodeCache = require("node-cache");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const axios = require("axios");
+const { Resend } = require('resend');
+// Initialize Resend with your API Key
+const resend = new Resend(process.env.RESEND_API_KEY);
 const mongoose = require("mongoose");
 const crypto = require("crypto");
 const connectDB = require("./config/db");
@@ -77,70 +80,29 @@ const apiLimiter = rateLimit({
 // Helper to keep code clean
 async function sendPremiumWelcomeLogic(user, email, payRef) {
   try {
-    await transporter.sendMail({
-      from: `"Knownly Premium" <support@knownly.tech>`,
-      to: email,
+    const { data, error } = await resend.emails.send({
+      from: 'Knownly Premium <support@knownly.tech>',
+      to: [email],
       subject: "💎 Welcome to Knownly Premium — You're In!",
       html: `
-      <div style="
-        font-family: 'Segoe UI', Roboto, Arial, sans-serif;
-        background-color: #f4f7fa;
-        padding: 40px 0;
-        display: flex;
-        justify-content: center;
-      ">
-        <div style="
-          background: #ffffff;
-          max-width: 560px;
-          width: 100%;
-          border-radius: 14px;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.06);
-          padding: 36px 38px;
-        ">
+      <div style="font-family: 'Segoe UI', Roboto, Arial, sans-serif; background-color: #f4f7fa; padding: 40px 0; display: flex; justify-content: center;">
+        <div style="background: #ffffff; max-width: 560px; width: 100%; border-radius: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); padding: 36px 38px; margin: auto;">
 
-          <!-- Header -->
           <div style="text-align: center; margin-bottom: 28px;">
-            <img 
-              src="https://knownly.tech/logo.png" 
-              alt="Knownly Logo"
-              style="width: 90px; margin-bottom: 12px;"
-            />
-            <h1 style="
-              color: #4f39f6;
-              font-size: 24px;
-              margin: 0;
-              font-weight: 700;
-            ">
-              Knownly Premium
-            </h1>
+            <img src="https://knownly.tech/logo.png" alt="Knownly Logo" style="width: 90px; margin-bottom: 12px;" />
+            <h1 style="color: #4f39f6; font-size: 24px; margin: 0; font-weight: 700;">Knownly Premium</h1>
           </div>
 
-          <!-- Greeting -->
-          <p style="font-size: 16px; color: #111827;">
-            Hi <strong>${user.fname}</strong>,
-          </p>
+          <p style="font-size: 16px; color: #111827;">Hi <strong>${user.fname}</strong>,</p>
 
           <p style="font-size: 15px; color: #374151; line-height: 1.65;">
             🎉 <strong>Welcome to Knownly Premium!</strong><br/>
             Your payment has been successfully verified, and you're officially onboard.
           </p>
 
-          <!-- Premium Card -->
-          <div style="
-            background: linear-gradient(135deg, #4f39f6, #4f39e1);
-            border-radius: 12px;
-            padding: 22px 24px;
-            margin: 24px 0;
-            color: #ffffff;
-          ">
-            <p style="margin: 0; font-size: 14px; opacity: 0.9;">
-              Enrolled Cohort
-            </p>
-            <p style="
-              margin: 6px 0 0;
-              font-size: 20px;
-              font-weight: 700;
-            ">
+          <div style="background: linear-gradient(135deg, #4f39f6, #4f39e1); border-radius: 12px; padding: 22px 24px; margin: 24px 0; color: #ffffff;">
+            <p style="margin: 0; font-size: 14px; opacity: 0.9;">Enrolled Cohort</p>
+            <p style="margin: 6px 0 0; font-size: 20px; font-weight: 700;">
               ${user.cohort?.name || "Knownly Cohort"}
             </p>
             <p style="margin-top: 10px; font-size: 13px; opacity: 0.85;">
@@ -148,104 +110,43 @@ async function sendPremiumWelcomeLogic(user, email, payRef) {
             </p>
           </div>
 
-          <!-- Benefits -->
-          <p style="font-size: 15px; color: #374151; line-height: 1.6;">
-            As a <strong>Premium participant</strong>, you'll receive:
-          </p>
-
-          <ul style="
-            font-size: 14px;
-            color: #374151;
-            line-height: 1.7;
-            padding-left: 18px;
-          ">
+          <p style="font-size: 15px; color: #374151; line-height: 1.6;">As a <strong>Premium participant</strong>, you'll receive:</p>
+          <ul style="font-size: 14px; color: #374151; line-height: 1.7; padding-left: 18px;">
             <li>💎 1-on-1 mentorship with industry experts</li>
             <li>📈 Advanced learning tracks & exclusive projects</li>
             <li>🤝 Priority mentor feedback & career guidance</li>
             <li>📜 Verified Premium certificates</li>
           </ul>
 
-          <!-- Community CTA -->
           <div style="text-align: center; margin: 30px 0;">
-            <a
-              href="https://knownly.tech/internships/join"
-              style="
-                background-color: #4f39f6;
-                color: #ffffff;
-                text-decoration: none;
-                padding: 14px 26px;
-                border-radius: 8px;
-                font-weight: 600;
-                display: inline-block;
-              "
-            >
+            <a href="https://knownly.tech/internships/join" style="background-color: #4f39f6; color: #ffffff; text-decoration: none; padding: 14px 26px; border-radius: 8px; font-weight: 600; display: inline-block;">
               Join the Knownly Community →
             </a>
           </div>
 
-          <!-- Slack Instruction -->
-          <div style="
-            background-color: #f8fafc;
-            border-left: 4px solid #4f39f6;
-            padding: 16px 18px;
-            margin: 26px 0;
-            border-radius: 8px;
-          ">
-            <p style="margin: 0; font-size: 15px; color: #0f172a;">
-              👋 Final Step: Link Your Slack Account
-            </p>
-
-            <p style="margin: 10px 0 0; font-size: 14px; color: #334155; line-height: 1.6;">
-              After joining the Slack workspace, link your email so we can onboard you properly.
-            </p>
-
-            <p style="
-              margin: 12px 0 0;
-              font-size: 14px;
-              color: #0f172a;
-              background: #e0f2fe;
-              padding: 10px 12px;
-              border-radius: 6px;
-              font-family: monospace;
-            ">
+          <div style="background-color: #f8fafc; border-left: 4px solid #4f39f6; padding: 16px 18px; margin: 26px 0; border-radius: 8px;">
+            <p style="margin: 0; font-size: 15px; color: #0f172a;">👋 Final Step: Link Your Slack Account</p>
+            <p style="margin: 10px 0 0; font-size: 14px; color: #334155; line-height: 1.6;">After joining the Slack workspace, link your email so we can onboard you properly.</p>
+            <p style="margin: 12px 0 0; font-size: 14px; color: #0f172a; background: #e0f2fe; padding: 10px 12px; border-radius: 6px; font-family: monospace;">
               /link-intern ${email}
-            </p>
-
-            <p style="margin-top: 10px; font-size: 13px; color: #475569;">
-              This step only links your Slack account to your application for communication and onboarding.
             </p>
           </div>
 
-          <!-- Footer -->
-          <p style="font-size: 15px; color: #4b5563; line-height: 1.6;">
-            We're excited to have you with us. Further instructions and mentorship details
-            will be shared inside the community.
-          </p>
-
-          <p style="font-size: 15px; color: #111827; margin-top: 26px;">
-            Welcome aboard,<br/>
-            <strong>The Knownly Team</strong>
-          </p>
-
-          <hr style="
-            border: none;
-            border-top: 1px solid #e5e7eb;
-            margin: 28px 0;
-          "/>
-
-          <p style="
-            font-size: 12px;
-            color: #9ca3af;
-            text-align: center;
-          ">
-            This is an automated email. Please do not reply.
-          </p>
+          <p style="font-size: 15px; color: #4b5563; line-height: 1.6;">We're excited to have you with us. Further instructions will be shared inside the community.</p>
+          <p style="font-size: 15px; color: #111827; margin-top: 26px;">Welcome aboard,<br/><strong>The Knownly Team</strong></p>
         </div>
       </div>
       `,
     });
+
+    if (error) {
+      console.error("❌ Resend API Error:", error);
+      return;
+    }
+
+    console.log("✅ Premium Welcome Email sent successfully:", data.id);
   } catch (err) {
-    console.error("❌ Premium Welcome Email Error:", err);
+    console.error("❌ Premium Welcome Email Logic Error:", err);
   }
 }
 
@@ -714,6 +615,7 @@ async function handleBackgroundSubmission(
   projectLink,
 ) {
   const session = await mongoose.startSession();
+  let certToEmail = null;
   try {
     const application = await ApplicationForm.findOne({
       slackUserId,
@@ -870,21 +772,7 @@ async function handleBackgroundSubmission(
                 track: application.track,
                 certificateId,
                 level: cert.package,
-              });
-
-              await transporter.sendMail({
-                from: `"Knownly Certificates" <support@knownly.tech>`,
-                to: application.email,
-                subject: "🎓 Your Knownly Certificate",
-                text: `Congratulations! Your certificate is attached.`,
-                attachments: [
-                  {
-                    filename: `${certificateId}.pdf`,
-                    path: pdfPath,
-                  },
-                ],
-              });
-
+              });             
               userMessage +=
                 `💎 *Premium Certificate Issued!*\n` +
                 `Your certificate has been sent to your email.\n\n`;
