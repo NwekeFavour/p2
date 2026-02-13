@@ -1419,7 +1419,7 @@ slackApp.command("/ping-intern", async ({ ack, body, client }) => {
   try {
 
     // 🛡️ SECURITY CHECK: Mentor/Admin only
-    const mentor = await User.findOne({ slackUserId, role: { $in: ["mentor", "admin"] } });
+    const mentor = await User.findOne({ slackUserId, role: { $in: ["super-admin", "admin"] } });
     
     if (!mentor) {
       return await client.chat.postEphemeral({

@@ -9,6 +9,7 @@ const UserSchema = new mongoose.Schema(
       required: [true, "First name is required"],
       trim: true,
     },
+    
     lname: {
       type: String,
       required: [true, "Last name is required"],
@@ -30,6 +31,12 @@ const UserSchema = new mongoose.Schema(
       required: [true, "Password is required"],
       minlength: [6, "Password must be at least 6 characters"],
       select: false, // Don't return password in queries by default
+    },
+    slackUserId: {
+      type: String,
+      default: null,
+      unique: true, // Prevents one Slack account from linking to multiple emails
+      sparse: true, // Allows multiple 'null' values for users not on Slack yet
     },
     assignedCohorts: [{
       type: mongoose.Schema.Types.ObjectId,
