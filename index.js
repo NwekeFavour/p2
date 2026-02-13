@@ -13,7 +13,7 @@ const mongoose = require("mongoose");
 const crypto = require("crypto");
 const connectDB = require("./config/db");
 const Submission = require("./models/submission");
-const { ApplicationForm } = require("./models/applicationform");
+const { ApplicationForm, User, Cohort } = require("./models/applicationform");
 const applyRouter = require("./routers/apply");
 const Auth = require("./routers/auth");
 const transporter = require("./config/mailer");
@@ -1364,70 +1364,123 @@ slackApp.command("/my-stage", async ({ ack, body, client }) => {
   }
 });
 
+slackApp.command("/mentor", async ({ ack, body, client, say }) => {
+  await ack();
+  const slackUserId = body.user_id;
+  const email = body.text?.trim().toLowerCase();
+
+  if (!email) {
+    return await client.chat.postEphemeral({
+      channel: body.channel_id,
+      user: slackUserId,
+      text: "⚠️ Please provide your registered email: `/mentor your@email.com`"
+    });
+  }
+
+  try {
+
+    // Check if the user exists in our DB and is a mentor/admin
+    const user = await User.findOne({ email, role: { $in: ["super-admin", "admin"] } });
+
+    if (!user) {
+      return await client.chat.postEphemeral({
+        channel: body.channel_id,
+        user: slackUserId,
+        text: "❌ Access Denied. This email is not registered as a Mentor/Admin in Knownly."
+      });
+    }
+
+    // Link the Slack ID to the User model
+    user.slackUserId = slackUserId;
+    await user.save();
+
+    await client.chat.postEphemeral({
+      channel: body.channel_id,
+      user: slackUserId,
+      text: `✅ *Verification Successful!* Welcome, Mentor ${user.fname}. You can now use \`/ping-intern\`.`
+    });
+
+  } catch (error) {
+    console.error("Mentor Auth Error:", error);
+    await client.chat.postEphemeral({
+      channel: body.channel_id,
+      user: slackUserId,
+      text: "⚠️ An error occurred during verification."
+    });
+  }
+});
+
 // --- /ping-intern Command ---
 slackApp.command("/ping-intern", async ({ ack, body, client }) => {
-  // ✅ IMMEDIATELY acknowledge
   await ack();
-
   const startTime = Date.now();
   const slackUserId = body.user_id;
 
-  const sendResponse = async (text) => {
-    try {
-      await client.chat.postEphemeral({
+  try {
+
+    // 🛡️ SECURITY CHECK: Mentor/Admin only
+    const mentor = await User.findOne({ slackUserId, role: { $in: ["mentor", "admin"] } });
+    
+    if (!mentor) {
+      return await client.chat.postEphemeral({
         channel: body.channel_id,
         user: slackUserId,
-        text: text,
+        text: "🚫 *Unauthorized:* This command is for verified Mentors only. Use `/mentor <email>` first."
       });
-    } catch (err) {
-      console.error("Failed to send ephemeral:", err);
-      try {
-        await client.chat.postMessage({
-          channel: slackUserId,
-          text: text,
-        });
-      } catch (dmErr) {
-        console.error("Failed to send DM:", dmErr);
-      }
     }
-  };
 
-  try {
-    const dbStatus =
-      mongoose.connection.readyState === 1 ? "✅ Connected" : "❌ Disconnected";
-
+    // 1. System Health Data
+    const dbStatus = mongoose.connection.readyState === 1 ? "✅ Connected" : "❌ Disconnected";
     const authCheck = await client.auth.test();
+    const env = process.env.NODE_ENV || "production";
+
+    // 2. Cohort Data Collection
+    const activeCohort = await Cohort.findOne({ status: "active" }).sort({ createdAt: -1 });
+
+    let cohortStatsText = "_No active cohort found._";
+
+    if (activeCohort) {
+      const [totalInterns, premiumInterns, completions] = await Promise.all([
+        ApplicationForm.countDocuments({ cohort: activeCohort._id }),
+        ApplicationForm.countDocuments({ 
+          cohort: activeCohort._id, 
+          package: { $in: ["Premium", "Pro"] } 
+        }),
+        ApplicationForm.countDocuments({
+          cohort: activeCohort._id,
+          $or: [{ currentStage: { $gte: 8 } }, { completed: true }],
+        })
+      ]);
+
+      cohortStatsText = 
+        `• *Active Cohort:* ${activeCohort.name}\n` +
+        `• *Total Interns:* ${totalInterns}\n` +
+        `• *💎 Premium:* ${premiumInterns}\n` +
+        `• *Free:* ${totalInterns - premiumInterns}\n` +
+        `• *Stage 8 Completions:* ${completions}`;
+    }
+
     const latency = Date.now() - startTime;
 
-    const application = await ApplicationForm.findOne({ slackUserId }).lean();
+    // 3. Final Response
+    await client.chat.postEphemeral({
+      channel: body.channel_id,
+      user: slackUserId,
+      text: `*Knownly Bot Diagnostic (Mentor Mode)*\n\n` +
+            `• *Database:* ${dbStatus}\n` +
+            `• *Slack API:* ✅ Online (${authCheck.bot_id})\n` +
+            `• *Environment:* \`${env}\`\n` +
+            `• *Latency:* \`${latency}ms\`\n\n` +
+            `*Cohort Statistics*\n${cohortStatsText}`
+    });
 
-    let cohortStatsText = "N/A";
-
-    if (application?.cohort) {
-      const totalInterns = await ApplicationForm.countDocuments({
-        cohort: application.cohort,
-      });
-
-      const totalCompleted = await ApplicationForm.countDocuments({
-        cohort: application.cohort,
-        $or: [{ currentStage: { $gte: 8 } }, { completed: true }],
-      });
-
-      cohortStatsText =
-        `• *Cohort Interns:* ${totalInterns}\n` +
-        `• *Completed (Stage 8):* ${totalCompleted}`;
-    }
-
-    await sendResponse(
-      `*Knownly Bot Diagnostic*\n\n` +
-      `• *Database:* ${dbStatus}\n` +
-      `• *Slack API:* ✅ Online (${authCheck.bot_id})\n` +
-      `• *Latency:* \`${latency}ms\`\n` +
-      `• *Environment:* \`${process.env.NODE_ENV || "production"}\`\n\n` +
-      `*Cohort Statistics*\n${cohortStatsText}`
-    );
   } catch (error) {
-    await sendResponse(`⚠️ *Diagnostic Failed:* ${error.message}`);
+    console.error("Ping Error:", error);
+    await client.chat.postEphemeral({
+      channel: body.channel_id,
+      user: slackUserId,
+      text: `⚠️ *Diagnostic Failed:* ${error.message}`
+    });
   }
 });
 
