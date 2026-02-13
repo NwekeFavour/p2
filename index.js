@@ -78,7 +78,7 @@ const apiLimiter = rateLimit({
 async function sendPremiumWelcomeLogic(user, email, payRef) {
   try {
     await transporter.sendMail({
-      from: `"Knownly Premium" <Knownlyteam@example.com>`,
+      from: `"Knownly Premium" <support@knownly.tech>`,
       to: email,
       subject: "💎 Welcome to Knownly Premium — You're In!",
       html: `
@@ -873,7 +873,7 @@ async function handleBackgroundSubmission(
               });
 
               await transporter.sendMail({
-                from: `"Knownly Certificates" <Knownlyteam@example.com>`,
+                from: `"Knownly Certificates" <support@knownly.tech>`,
                 to: application.email,
                 subject: "🎓 Your Knownly Certificate",
                 text: `Congratulations! Your certificate is attached.`,

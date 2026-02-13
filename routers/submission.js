@@ -129,7 +129,7 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
       const { path, id, email } = oldSubmission.shouldSendCertEmail;
       // Send the mail using your transporter
       transporter.sendMail({
-        from: `"Knownly Certificates" <Knownlyteam@example.com>`,
+        from: `"Knownly Certificates" <suppor@knownly.tech>`,
         to: email,
         subject: "🎓 Your Knownly Certificate",
         attachments: [{ filename: `${id}.pdf`, path: path }],

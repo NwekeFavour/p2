@@ -259,18 +259,18 @@ router.put("/:id/status", protect, authorize("super-admin", "admin"), async (req
     // Send email
     if (status === "Approved") {
       await transporter.sendMail({
-        from: `"Knownly Internship" <Knownlyteam@example.com>`,
+        from: `"Knownly Internship" <support@knownly.tech>`,
         to: updatedApp.email,
         subject: "Congratulations! Your Application Has Been Approved",
         html: approvedEmail(updatedApp.fname),
       });
     } else if (status === "Rejected") {
       await transporter.sendMail({
-        from: `"Knownly Internship" <Knownlyteam@example.com>`,
+        from: `"Knownly Internship" <support@knownly.tech>`,
         to: updatedApp.email,
         subject: "Application Update",
         html: rejectedEmail(updatedApp.fname),
-      });
+      });  
     }
 
     res.status(200).json({
@@ -426,7 +426,7 @@ router.post("/apply", async (req, res) => {
     (async () => {
       try {
         await transporter.sendMail({
-        from: `"Knownly Internship" <Knownlyteam@example.com>`,
+        from: `"Knownly Internship" <support@knownly.tech>`,
         to: email,
         subject: "🎉 Application Received - Welcome to Knownly Internship!",
         html: `
