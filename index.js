@@ -1435,7 +1435,7 @@ slackApp.command("/ping-intern", async ({ ack, body, client }) => {
     const env = process.env.NODE_ENV || "production";
 
     // 2. Cohort Data Collection
-    const activeCohort = await Cohort.findOne({ status: "active" }).sort({ createdAt: -1 });
+    const activeCohort = await Cohort.findOne({ isActive: true }).sort({ createdAt: -1 });
 
     let cohortStatsText = "_No active cohort found._";
 
