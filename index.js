@@ -614,6 +614,11 @@ async function handleBackgroundSubmission(
   slackUserName,
   projectLink,
 ) {
+
+  if (mongoose.connection.readyState !== 1) {
+    console.log("DB not connected, attempting to connect...");
+    await mongoose.connect(process.env.MONGODB_URI);
+  }
   const session = await mongoose.startSession();
   let certToEmail = null;
   try {
