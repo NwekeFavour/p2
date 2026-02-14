@@ -314,6 +314,24 @@ app.post("/paystack-webhook", async (req, res) => {
   res.sendStatus(200);
 });
 
+const startServer = async () => {
+  try {
+    await connectDB();
+    console.log("✅ Database connection established.");
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Knownly Engine Online | Port: ${PORT}`);
+      console.log(`📡 Slack bot is up and running`);
+    });
+  } catch (err) {
+    console.error("❌ Critical Startup Error:", err.message);
+    process.exit(1);
+  }
+};
+
+startServer();
+
+
 function auditFrontend(html, stage) {
   let score = 0;
   let feedback = "";
@@ -1563,19 +1581,3 @@ app.get("/", (req, res) => res.send("Knownly API Active."));
 
 const PORT = process.env.PORT || 5000;
 
-const startServer = async () => {
-  try {
-    await connectDB();
-    console.log("✅ Database connection established.");
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Knownly Engine Online | Port: ${PORT}`);
-      console.log(`📡 Slack bot is up and running`);
-    });
-  } catch (err) {
-    console.error("❌ Critical Startup Error:", err.message);
-    process.exit(1);
-  }
-};
-
-startServer();
