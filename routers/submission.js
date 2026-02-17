@@ -171,7 +171,6 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
       <div style="text-align: center; padding: 30px 20px; background-color: #ffffff; border-bottom: 1px solid #f3f4f6;">
         <div style="display: inline-block; text-align: left;">
           <div style="display: flex; align-items: center; gap: 12px;">
-             <img src="https://knownly.tech/logo.png" alt="Knownly Logo" style="width: 40px; height: auto;" />
              <div style="display: inline-block; vertical-align: middle; line-height: 1;">
                 <span style="font-size: 24px; font-weight: 800; letter-spacing: -0.05em; color: #111827; display: block; text-transform: uppercase;">
                   KNOWNLY
