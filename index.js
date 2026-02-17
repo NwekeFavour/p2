@@ -1641,22 +1641,29 @@ app.get("/api/health", async (req, res) => {
 app.get("/verify/:certificateId", async (req, res) => {
   const Certificate = require("./models/certificate");
 
-  const cert = await Certificate.findOne({
-    certificateId: req.params.certificateId,
-  }).populate("application");
+  try {
+    const cert = await Certificate.findOne({
+      certificateId: req.params.certificateId,
+    }).populate("application");
 
-  if (!cert) {
-    return res.status(404).json({ valid: false });
+    if (!cert) {
+      return res.status(404).json({ valid: false });
+    }
+
+    res.json({
+      valid: true,
+      name: `${cert.application.fname} ${cert.application.lname}`,
+      track: cert.track,
+      cohort: cert.application.cohort, // 👈 Added cohort
+      issued: cert.issueDate,
+      certificateId: cert.certificateId,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ valid: false, error: "Server error" });
   }
-
-  res.json({
-    valid: true,
-    name: `${cert.application.fname} ${cert.application.lname}`,
-    track: cert.track,
-    issued: cert.issueDate,
-    certificateId: cert.certificateId,
-  });
 });
+
 
 app.get("/", (req, res) => res.send("Knownly API Active."));
 
