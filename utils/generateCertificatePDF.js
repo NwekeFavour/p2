@@ -253,13 +253,7 @@ async function generateCertificatePDF(data) {
       doc.info.Title = `Certificate - ${data.name || 'Recipient'}`;
       doc.info.CreationDate = new Date();
 
-      const dirPath  = path.join(__dirname, '../certificates');
-      const filePath = path.join(dirPath, `${data.certificateId}.pdf`);
-      if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
-
-      const stream = fs.createWriteStream(filePath);
-      doc.pipe(stream);
-
+ 
       const W  = doc.page.width;   // 841.89
       const H  = doc.page.height;  // 595.28
       const CX = W / 2;

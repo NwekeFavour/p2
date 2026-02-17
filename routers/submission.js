@@ -14,9 +14,12 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // @desc    Update submission status and feedback
 // @route   PATCH /api/submissions/:id
 // @access  Private (Admin Only)
+
 router.patch("/:id", protect, authorize("admin"), async (req, res) => {
   const session = await mongoose.startSession();
   let transactionCommitted = false;
+  let certificateEmailPayload = null;
+
 
   try {
     session.startTransaction();
@@ -36,6 +39,8 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
     if (!app) throw new Error("APPLICATION_NOT_FOUND");
 
     // 2. Update status and Audit Log
+    const previousStatus = oldSubmission.status;
+
     oldSubmission.status = status;
     oldSubmission.feedback = feedback;
     await oldSubmission.save({ session });
@@ -47,7 +52,7 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
           submission: oldSubmission._id,
           action: "Status Update",
           details: {
-            oldStatus: oldSubmission.status,
+            oldStatus: previousStatus,
             newStatus: status,
             feedbackProvided: feedback,
           },
@@ -94,20 +99,22 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
               ],
               { session },
             );
+            
 
             // Generate PDF (Save path to send after session commit)
-            const pdfPath = await generateCertificatePDF({
+            const pdfBuffer = await generateCertificatePDF({
               certificateId,
               name: `${app.fname} ${app.lname}`,
               track: app.track,
               level: app.package,
             });
 
-            oldSubmission.shouldSendCertEmail = {
-              path: pdfPath,
+            certificateEmailPayload = {
+              buffer: pdfBuffer,
               id: certificateId,
               email: app.email,
             };
+        
             slackMessage += `\n\n💎 Your verified certificate has been sent to your email!`;
           }
         } else {
@@ -141,13 +148,10 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
       }
 
       // --- CERTIFICATE EMAIL LOGIC ---
-      if (oldSubmission.shouldSendCertEmail) {
-        const { path: filePath, id, email } = oldSubmission.shouldSendCertEmail;
+        if (certificateEmailPayload) {
+          const { buffer, id, email } = certificateEmailPayload;
 
         try {
-          // Use fs.promises for non-blocking I/O
-          const fs = require("fs").promises;
-          const fileContent = await fs.readFile(filePath);
 
           await resend.emails.send({
             from: '"Knownly Certificates" <support@knownly.tech>',
@@ -156,7 +160,7 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
             attachments: [
               {
                 filename: `Knownly_Certificate_${id}.pdf`,
-                content: fileContent,
+                content: buffer,
               },
             ],
             html: `
@@ -231,10 +235,7 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
 
           console.log("✅ Certificate sent via Resend");
 
-          // CLEANUP: Delete PDF from /tmp after sending
-          await fs
-            .unlink(filePath)
-            .catch((err) => console.error("Cleanup error:", err));
+          // CLEANUP: Delete PDF from /tmp after sending          
         } catch (mailErr) {
           console.error("❌ Certificate Email Failed:", mailErr.message);
         }
