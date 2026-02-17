@@ -110,7 +110,7 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
             });
 
             certificateEmailPayload = {
-              buffer: pdfBuffer,
+              buffer: Buffer.from(pdfBuffer),
               id: certificateId,
               email: app.email,
             };
@@ -160,7 +160,8 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
             attachments: [
               {
                 filename: `Knownly_Certificate_${id}.pdf`,
-                content: buffer,
+                content: buffer.toString("base64"),
+                encoding: "base64",
               },
             ],
             html: `
