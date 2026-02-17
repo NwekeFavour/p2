@@ -265,6 +265,11 @@ async function generateCertificatePDF(data) {
       drawCornerOrnaments(doc);
       drawSideDots(doc);
 
+
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => reject(err));
       // ── Knownly wordmark (top-left purple triangle zone) ────
       doc.fillColor('white').font('Helvetica-Bold').fontSize(13)
         .text('KNOWNLY', M + 10, M + 8, { lineBreak: false });
@@ -350,9 +355,6 @@ async function generateCertificatePDF(data) {
 
       // ── Done ─────────────────────────────────────────────────
       doc.end();
-      stream.on('finish', () => resolve(filePath));
-      stream.on('error',  (err) => reject(err));
-
     } catch (err) { reject(err); }
   });
 }
