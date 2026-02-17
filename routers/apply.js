@@ -406,41 +406,37 @@ router.post("/apply", async (req, res) => {
       track,
       level,
       package: pkg,
-      cohortId,
     } = req.body;
 
+    const cohort = await Cohort.findOne({ isActive: true });
+
     // 1. Validations
-    if (!cohortId)
+    if (!cohort._id)
       return res
         .status(400)
         .json({ success: false, message: "Cohort ID is required." });
 
-    const cohort = await Cohort.findById(cohortId);
     if (!cohort)
       return res
         .status(404)
         .json({ success: false, message: "Cohort not found." });
 
     if (!cohort.canAcceptApplications()) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: `Applications for ${cohort.name} are closed.`,
-        });
+      return res.status(400).json({
+        success: false,
+        message: `Applications for ${cohort.name} are closed.`,
+      });
     }
 
     const existingApplication = await ApplicationForm.findOne({
       email,
-      cohort: cohortId,
+      cohort: cohort._id,
     });
     if (existingApplication) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "You have already applied to this cohort.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "You have already applied to this cohort.",
+      });
     }
 
     // 2. The Email Trigger (Merged with your Template)
@@ -484,13 +480,38 @@ router.post("/apply", async (req, res) => {
 
             ">
 
-              <div style="text-align: center; margin-bottom: 20px;">
+              <div style="text-align: center; margin-bottom: 25px;">
 
-                <img src="https://knownly.tech/logo.png" alt="Knownly Logo" style="width: 80px; height: auto; margin-bottom: 10px;" />
+  <!-- Brand Name -->
+  <div style="line-height: 1;">
 
-                <h1 style="color: #4f39f6; font-size: 22px; margin: 0;">Knownly Internship</h1>
+    <span style="
+      display: block;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      color: #111827;
+    ">
+      KNOWNLY
+    </span>
 
-              </div>
+    <!-- Sub-text -->
+    <span style="
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: #4f39f6;
+      text-transform: uppercase;
+      margin-top: 4px;
+    ">
+      INTERNSHIPS
+    </span>
+
+  </div>
+
+</div>
+
 
 
 
@@ -624,7 +645,7 @@ router.post("/apply", async (req, res) => {
 
     // 4. Handle FREE Track
     const newApplication = await ApplicationForm.create({
-      cohort: cohortId,
+      cohort: cohort._id,
       email,
       fname,
       lname,

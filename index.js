@@ -6,7 +6,7 @@ const NodeCache = require("node-cache");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const axios = require("axios");
-const { Resend } = require('resend');
+const { Resend } = require("resend");
 // Initialize Resend with your API Key
 const resend = new Resend(process.env.RESEND_API_KEY);
 const mongoose = require("mongoose");
@@ -68,7 +68,7 @@ app.use(
         imgSrc: ["'self'", "data:", "https:"],
       },
     },
-  })
+  }),
 );
 
 const apiLimiter = rateLimit({
@@ -81,17 +81,45 @@ const apiLimiter = rateLimit({
 async function sendPremiumWelcomeLogic(user, email, payRef) {
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Knownly Premium <support@knownly.tech>',
+      from: "Knownly Premium <support@knownly.tech>",
       to: [email],
       subject: "💎 Welcome to Knownly Premium — You're In!",
       html: `
       <div style="font-family: 'Segoe UI', Roboto, Arial, sans-serif; background-color: #f4f7fa; padding: 40px 0; display: flex; justify-content: center;">
         <div style="background: #ffffff; max-width: 560px; width: 100%; border-radius: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); padding: 36px 38px; margin: auto;">
 
-          <div style="text-align: center; margin-bottom: 28px;">
-            <img src="https://knownly.tech/logo.png" alt="Knownly Logo" style="width: 90px; margin-bottom: 12px;" />
-            <h1 style="color: #4f39f6; font-size: 24px; margin: 0; font-weight: 700;">Knownly Premium</h1>
-          </div>
+          <div style="text-align: center; margin-bottom: 25px;">
+
+  <!-- Brand Name -->
+  <div style="line-height: 1;">
+
+    <span style="
+      display: block;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      color: #111827;
+    ">
+      KNOWNLY
+    </span>
+
+    <!-- Sub-text -->
+    <span style="
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: #4f39f6;
+      text-transform: uppercase;
+      margin-top: 4px;
+    ">
+      INTERNSHIPS
+    </span>
+
+  </div>
+
+</div>
+
 
           <p style="font-size: 16px; color: #111827;">Hi <strong>${user.fname}</strong>,</p>
 
@@ -157,7 +185,11 @@ app.use("/api", express.json());
 app.use("/api", apiLimiter);
 
 const corsOptions = {
-  origin: ["https://knownly.tech", "http://localhost:5173", "https://www.knownly.tech"],
+  origin: [
+    "https://knownly.tech",
+    "http://localhost:5173",
+    "https://www.knownly.tech",
+  ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   credentials: true,
 };
@@ -330,7 +362,6 @@ const startServer = async () => {
 };
 
 startServer();
-
 
 function auditFrontend(html, stage) {
   let score = 0;
@@ -560,14 +591,15 @@ async function runAutomatedTests(url, track, stage, isPremium = false) {
 // Helper function to validate URLs based on track
 function validateProjectLink(projectLink, track) {
   const trimmedLink = projectLink.trim();
-  
+
   // Check if it's a valid URL format
   try {
     new URL(trimmedLink);
   } catch (e) {
     return {
       valid: false,
-      error: "⚠️ *Invalid URL Format*\nPlease provide a complete URL starting with http:// or https://",
+      error:
+        "⚠️ *Invalid URL Format*\nPlease provide a complete URL starting with http:// or https://",
     };
   }
 
@@ -578,7 +610,8 @@ function validateProjectLink(projectLink, track) {
     if (!trimmedLink.includes("figma.com")) {
       return {
         valid: false,
-        error: "⚠️ *Invalid Link for UI/UX Track*\nPlease submit a Figma link (https://figma.com/...)\n\nIf you're using a different tool, please export to Figma or contact support.",
+        error:
+          "⚠️ *Invalid Link for UI/UX Track*\nPlease submit a Figma link (https://figma.com/...)\n\nIf you're using a different tool, please export to Figma or contact support.",
       };
     }
   }
@@ -592,14 +625,15 @@ function validateProjectLink(projectLink, track) {
       "sheets.google.com",
     ];
 
-    const isValidMarketingLink = validMarketingDomains.some(domain => 
-      trimmedLink.includes(domain)
+    const isValidMarketingLink = validMarketingDomains.some((domain) =>
+      trimmedLink.includes(domain),
     );
 
     if (!isValidMarketingLink) {
       return {
         valid: false,
-        error: "⚠️ *Invalid Link for Marketing Track*\nPlease submit a Google link:\n• Google Docs\n• Google Slides\n• Google Sheets\n• Google Drive\n\nExample: https://docs.google.com/document/d/...",
+        error:
+          "⚠️ *Invalid Link for Marketing Track*\nPlease submit a Google link:\n• Google Docs\n• Google Slides\n• Google Sheets\n• Google Drive\n\nExample: https://docs.google.com/document/d/...",
       };
     }
 
@@ -607,7 +641,8 @@ function validateProjectLink(projectLink, track) {
     if (!trimmedLink.includes("/edit") && !trimmedLink.includes("/view")) {
       return {
         valid: true,
-        warning: "⚠️ *Reminder:* Make sure your Google Doc/Slide is shared with 'Anyone with the link' can view!",
+        warning:
+          "⚠️ *Reminder:* Make sure your Google Doc/Slide is shared with 'Anyone with the link' can view!",
       };
     }
   }
@@ -615,10 +650,14 @@ function validateProjectLink(projectLink, track) {
   // Frontend/Backend - Any valid URL
   if (trackLower.includes("frontend") || trackLower.includes("backend")) {
     // Allow any URL, but warn about localhost
-    if (trimmedLink.includes("localhost") || trimmedLink.includes("127.0.0.1")) {
+    if (
+      trimmedLink.includes("localhost") ||
+      trimmedLink.includes("127.0.0.1")
+    ) {
       return {
         valid: false,
-        error: "⚠️ *Cannot Audit Local URLs*\nPlease deploy your project to:\n• Vercel\n• Netlify\n• Render\n• Railway\n• Heroku\n\nThen submit the live URL.",
+        error:
+          "⚠️ *Cannot Audit Local URLs*\nPlease deploy your project to:\n• Vercel\n• Netlify\n• Render\n• Railway\n• Heroku\n\nThen submit the live URL.",
       };
     }
   }
@@ -632,7 +671,6 @@ async function handleBackgroundSubmission(
   slackUserName,
   projectLink,
 ) {
-
   if (mongoose.connection.readyState !== 1) {
     console.log("DB not connected, attempting to connect...");
     await mongoose.connect(process.env.MONGODB_URI);
@@ -652,7 +690,7 @@ async function handleBackgroundSubmission(
 
     // ✅ VALIDATE URL BEFORE PROCESSING
     const validation = validateProjectLink(projectLink, track);
-    
+
     if (!validation.valid) {
       await client.chat.postMessage({
         channel: slackUserId,
@@ -685,7 +723,7 @@ async function handleBackgroundSubmission(
                 feedback: "⭐ Premium Manual Review Pending.",
               },
             ],
-            { session }
+            { session },
           );
         });
 
@@ -699,11 +737,13 @@ async function handleBackgroundSubmission(
         console.error("❌ Failed Premium submission:", err);
 
         // Better error message based on error type
-        let userMessage = "❌ *System Error:* Could not record your submission. Please try again.";
-        
+        let userMessage =
+          "❌ *System Error:* Could not record your submission. Please try again.";
+
         if (err.name === "ValidationError") {
           if (err.errors.projectLink) {
-            userMessage = "⚠️ *Invalid URL*\nThe link you provided doesn't meet our requirements.\n\nPlease ensure:\n• It's a complete URL (starts with https://)\n• It's publicly accessible\n• For Marketing: Use Google Docs/Slides/Drive\n• For UI/UX: Use Figma\n• For Dev: Use deployed URL (not localhost)";
+            userMessage =
+              "⚠️ *Invalid URL*\nThe link you provided doesn't meet our requirements.\n\nPlease ensure:\n• It's a complete URL (starts with https://)\n• It's publicly accessible\n• For Marketing: Use Google Docs/Slides/Drive\n• For UI/UX: Use Figma\n• For Dev: Use deployed URL (not localhost)";
           }
         }
 
@@ -754,101 +794,106 @@ async function handleBackgroundSubmission(
           { session },
         );
 
-      if (isPassing) {
-        application.completedTasks += 1;
+        if (isPassing) {
+          application.completedTasks += 1;
 
-        const isFinalStage = application.currentStage === 8;
+          const isFinalStage = application.currentStage === 8;
 
-        if (isFinalStage) {
-          application.completed = true;
-          application.progress = 100;
+          if (isFinalStage) {
+            application.completed = true;
+            application.progress = 100;
 
-          const isPremium = application.package === "Premium";
+            const isPremium = application.package === "Premium";
 
-          userMessage =
-            `🎓 *CONGRATULATIONS ${application.fname} ${application.lname}!* 🎉\n\n` +
-            `You have successfully completed all stages of the ${application.track} program!\n\n`;
+            userMessage =
+              `🎓 *CONGRATULATIONS ${application.fname} ${application.lname}!* 🎉\n\n` +
+              `You have successfully completed all stages of the ${application.track} program!\n\n`;
 
-          if (isPremium) {
-            const Certificate = require("./models/certificate");
-            const generateCertificateId = require("./utils/generateCertificateId");
-            const generateCertificatePDF = require("./utils/generateCertificatePDF");
+            if (isPremium) {
+              const Certificate = require("./models/certificate");
+              const generateCertificateId = require("./utils/generateCertificateId");
+              const generateCertificatePDF = require("./utils/generateCertificatePDF");
 
-            const existingCert = await Certificate.findOne({
-              application: application._id,
-            });
-
-            if (!existingCert) {
-              const certificateId = generateCertificateId();
-
-              const cert = await Certificate.create({
+              const existingCert = await Certificate.findOne({
                 application: application._id,
-                certificateId,
-                cohort: application.cohort,
-                track: application.track,
-                level: application.package,
               });
 
-              const pdfPath = await generateCertificatePDF({
-                certificateId,
-                name: `${application.fname} ${application.lname}`,
-                track: application.track,
-                certificateId,
-                level: cert.package,
-              });             
+              if (!existingCert) {
+                const certificateId = generateCertificateId();
+
+                const cert = await Certificate.create({
+                  application: application._id,
+                  certificateId,
+                  cohort: application.cohort,
+                  track: application.track,
+                  level: application.package,
+                });
+
+                const pdfPath = await generateCertificatePDF({
+                  certificateId,
+                  name: `${application.fname} ${application.lname}`,
+                  track: application.track,
+                  certificateId,
+                  level: cert.package,
+                });
+                userMessage +=
+                  `💎 *Premium Certificate Issued!*\n` +
+                  `Your certificate has been sent to your email.\n\n`;
+              }
+            } else {
               userMessage +=
-                `💎 *Premium Certificate Issued!*\n` +
-                `Your certificate has been sent to your email.\n\n`;
+                `👏 You've completed the Free track successfully!\n` +
+                `Upgrade to Premium in future cohorts to receive an official certificate.\n\n`;
             }
+
+            userMessage += `Our team will reach out regarding next steps. Amazing work! 🚀`;
+
+            await client.chat.postMessage({
+              channel: slackUserId,
+              text: userMessage,
+            });
+
+            await client.chat.postMessage({
+              channel: process.env.SLACK_ADMIN_CHANNEL_ID,
+              text: `🏆 *Program Completion!*\nIntern: ${application.fname} ${application.lname}\nTrack: ${application.track}\nPackage: ${application.package}`,
+            });
           } else {
-            userMessage +=
-              `👏 You've completed the Free track successfully!\n` +
-              `Upgrade to Premium in future cohorts to receive an official certificate.\n\n`;
+            application.currentStage = Math.min(
+              application.currentStage + 1,
+              8,
+            );
+            application.progress = Math.round(
+              (application.currentStage / 8) * 100,
+            );
+
+            userMessage = `✅ *Passed Stage ${application.currentStage - 1}!* | *Score:* ${testResult.score}/100\nNext: *Stage ${application.currentStage}*`;
           }
 
-          userMessage += `Our team will reach out regarding next steps. Amazing work! 🚀`;
-
-          await client.chat.postMessage({
-            channel: slackUserId,
-            text: userMessage,
-          });
-
-          await client.chat.postMessage({
-            channel: process.env.SLACK_ADMIN_CHANNEL_ID,
-            text: `🏆 *Program Completion!*\nIntern: ${application.fname} ${application.lname}\nTrack: ${application.track}\nPackage: ${application.package}`,
-          });
+          await application.save({ session });
         } else {
-          application.currentStage = Math.min(application.currentStage + 1, 8);
-          application.progress = Math.round(
-            (application.currentStage / 8) * 100,
-          );
-
-          userMessage = `✅ *Passed Stage ${application.currentStage - 1}!* | *Score:* ${testResult.score}/100\nNext: *Stage ${application.currentStage}*`;
+          userMessage = `⚠️ *Audit Failed:* ${testResult.feedback}\n_Fix the issues and submit again._`;
         }
-
-        await application.save({ session });
-      } else {
-        userMessage = `⚠️ *Audit Failed:* ${testResult.feedback}\n_Fix the issues and submit again._`;
-      }
-    });
-
-    if (!application.completed) {
-      await client.chat.postMessage({
-        channel: slackUserId,
-        text: `🚀 *Audit Complete*\n\n${userMessage}\n*Progress:* ${application.progress}%`,
       });
-    }
+
+      if (!application.completed) {
+        await client.chat.postMessage({
+          channel: slackUserId,
+          text: `🚀 *Audit Complete*\n\n${userMessage}\n*Progress:* ${application.progress}%`,
+        });
+      }
     } catch (dbError) {
       console.error("❌ Database Error during submission:", dbError);
-      
-      let userMessage = "❌ *System Error:* Could not save your submission. Please try again.";
-      
+
+      let userMessage =
+        "❌ *System Error:* Could not save your submission. Please try again.";
+
       if (dbError.name === "ValidationError") {
         if (dbError.errors.projectLink) {
-          userMessage = "⚠️ *Invalid URL*\nThe link you provided doesn't meet our requirements.\n\nPlease ensure:\n• It's a complete URL (starts with https://)\n• It's publicly accessible\n• For Marketing: Use Google Docs/Slides/Drive\n• For UI/UX: Use Figma\n• For Dev: Use deployed URL (not localhost)";
+          userMessage =
+            "⚠️ *Invalid URL*\nThe link you provided doesn't meet our requirements.\n\nPlease ensure:\n• It's a complete URL (starts with https://)\n• It's publicly accessible\n• For Marketing: Use Google Docs/Slides/Drive\n• For UI/UX: Use Figma\n• For Dev: Use deployed URL (not localhost)";
         }
       }
-      
+
       await client.chat.postMessage({
         channel: slackUserId,
         text: userMessage,
@@ -886,36 +931,46 @@ slackApp.command("/link-intern", async ({ ack, body, client }) => {
     } catch (err) {
       console.error("Failed to send ephemeral message:", err);
       try {
-        await client.chat.postMessage({ channel: slackUserId, text: text, ...(blocks && { blocks }) });
-      } catch (dmErr) { console.error("Failed to send DM:", dmErr); }
+        await client.chat.postMessage({
+          channel: slackUserId,
+          text: text,
+          ...(blocks && { blocks }),
+        });
+      } catch (dmErr) {
+        console.error("Failed to send DM:", dmErr);
+      }
     }
   };
 
   try {
     if (!emailInput || !emailInput.includes("@")) {
-      return await sendResponse("⚠️ Please provide your email: `/link-intern user@example.com` ");
+      return await sendResponse(
+        "⚠️ Please provide your email: `/link-intern user@example.com` ",
+      );
     }
 
     // 1. Fetch the NEW application by email
     const application = await ApplicationForm.findOne({ email: emailInput });
 
     if (!application) {
-      return await sendResponse(`🔍 I couldn't find an application for *${emailInput}*.`);
+      return await sendResponse(
+        `🔍 I couldn't find an application for *${emailInput}*.`,
+      );
     }
 
     // 2. CHECK: Is this specific application already completed?
     // This allows them to join a NEW cohort even if an OLD one exists on the same Slack ID.
     if (application.completed) {
       return await sendResponse(
-        "🎓 *Record Archived*\nThis specific application is marked as completed. Please use the email for your *current* active cohort."
+        "🎓 *Record Archived*\nThis specific application is marked as completed. Please use the email for your *current* active cohort.",
       );
     }
 
-    // 3. ARCHIVE OLD SESSIONS: Unset slackUserId from any other UNCOMPLETED applications 
+    // 3. ARCHIVE OLD SESSIONS: Unset slackUserId from any other UNCOMPLETED applications
     // This ensures only the current cohort is "Active" for commands like /my-stage.
     await ApplicationForm.updateMany(
       { slackUserId, completed: { $ne: true } },
-      { $unset: { slackUserId: "" } }
+      { $unset: { slackUserId: "" } },
     );
 
     // 4. Track & Package Logic
@@ -924,15 +979,20 @@ slackApp.command("/link-intern", async ({ ack, body, client }) => {
     const trackConfig = TRACK_CHANNELS[trackKey];
 
     if (!trackConfig) {
-      return await sendResponse(`⚠️ Track (${application.track}) is not configured yet.`);
+      return await sendResponse(
+        `⚠️ Track (${application.track}) is not configured yet.`,
+      );
     }
 
-    let assignedChannel = (packageType === "Premium" || packageType === "Premium Pro") 
-      ? trackConfig.premium 
-      : trackConfig.free;
+    let assignedChannel =
+      packageType === "Premium" || packageType === "Premium Pro"
+        ? trackConfig.premium
+        : trackConfig.free;
 
     if (!assignedChannel) {
-       return await sendResponse(`🚫 Channel not configured for this track/package.`);
+      return await sendResponse(
+        `🚫 Channel not configured for this track/package.`,
+      );
     }
 
     // 5. LINK THE NEW ACCOUNT
@@ -948,12 +1008,15 @@ slackApp.command("/link-intern", async ({ ack, body, client }) => {
         users: slackUserId,
       });
     } catch (err) {
-      console.log("Invite error (user might already be in channel):", err.data?.error);
+      console.log(
+        "Invite error (user might already be in channel):",
+        err.data?.error,
+      );
     }
 
     // 7. Success Message
     let welcomeMsg = `✅ *Account Switched!* You are now active on the *${application.track}* track.\n\n`;
-    
+
     // Custom logic for Subaccount transactions
     if (packageType.includes("Premium")) {
       welcomeMsg += `💎 *${packageType} Activated!*\nTransaction verified for Knownly Premium. You have priority access.\n\n`;
@@ -962,10 +1025,11 @@ slackApp.command("/link-intern", async ({ ack, body, client }) => {
     }
 
     await sendResponse(welcomeMsg);
-
   } catch (error) {
     console.error("Link Error:", error);
-    await sendResponse("❌ *System Error:* I couldn't link your account at this time.");
+    await sendResponse(
+      "❌ *System Error:* I couldn't link your account at this time.",
+    );
   }
 });
 
@@ -1142,21 +1206,26 @@ slackApp.command("/my-certificate", async ({ ack, body, client }) => {
       });
     } catch (err) {
       console.error("Ephemeral failed, trying DM:", err);
-      await client.chat.postMessage({ channel: slackUserId, text: text, ...(blocks && { blocks }) });
+      await client.chat.postMessage({
+        channel: slackUserId,
+        text: text,
+        ...(blocks && { blocks }),
+      });
     }
   };
 
   try {
     // 1. REMOVED { completed: { $ne: true } } so we can actually find finished interns
     const application = await ApplicationForm.findOne({ slackUserId })
-    .sort({ updatedAt: -1 }) // Gets your most recently updated track
-    .populate("cohort", "name")
-    .lean();
+      .sort({ updatedAt: -1 }) // Gets your most recently updated track
+      .populate("cohort", "name")
+      .lean();
 
-
-      console.log(application.track)
+    console.log(application.track);
     if (!application) {
-      return await sendResponse("🔍 *Account Not Found*\nPlease run `/link-intern your@email.com` first.");
+      return await sendResponse(
+        "🔍 *Account Not Found*\nPlease run `/link-intern your@email.com` first.",
+      );
     }
 
     // 2. Handle Premium & Premium Pro Logic
@@ -1164,87 +1233,91 @@ slackApp.command("/my-certificate", async ({ ack, body, client }) => {
     const isPaid = ["Premium", "Premium Pro"].includes(application.package);
 
     if (!isPaid) {
-      return await sendResponse(
-        "🎓 *Certificate Access Restricted*",
-        [{
+      return await sendResponse("🎓 *Certificate Access Restricted*", [
+        {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: "Certificates are available for *Premium* and *Premium Pro* interns only.\n_Transaction verified for Knownly Prem holders._"
-          }
-        }]
-      );
+            text: "Certificates are available for *Premium* and *Premium Pro* interns only.\n_Transaction verified for Knownly Prem holders._",
+          },
+        },
+      ]);
     }
 
     // 3. Check Progress
     if (!application.completed || application.currentStage < 8) {
-      return await sendResponse(
-        `⏳ *Program Incomplete*`,
-        [{
+      return await sendResponse(`⏳ *Program Incomplete*`, [
+        {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `You are currently on *Stage ${application.currentStage || 1} / 8*.\nComplete the final audit to unlock your certificate!`
-          }
-        }]
-      );
+            text: `You are currently on *Stage ${application.currentStage || 1} / 8*.\nComplete the final audit to unlock your certificate!`,
+          },
+        },
+      ]);
     }
 
     // 4. Retrieve generated certificate
     const Certificate = require("./models/certificate");
-    const certificate = await Certificate.findOne({ application: application._id }).lean();
+    const certificate = await Certificate.findOne({
+      application: application._id,
+    }).lean();
 
     if (!certificate) {
-      return await sendResponse("⚠️ *Processing...*\nYour certificate is being generated. Please try again in 60 seconds.");
+      return await sendResponse(
+        "⚠️ *Processing...*\nYour certificate is being generated. Please try again in 60 seconds.",
+      );
     }
 
     const verifyUrl = `${process.env.FRONTEND_URL}/verify/${certificate.certificateId}`;
 
     // 5. Success Response
-    await sendResponse(
-      `🎉 Your Knownly Certificate`,
-      [
-        {
-          type: "section",
-          text: {
+    await sendResponse(`🎉 Your Knownly Certificate`, [
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `🎉 *Congratulations, ${application.fname}!*\nYour hard work in the *${application.track}* track has paid off.`,
+        },
+      },
+      {
+        type: "section",
+        fields: [
+          { type: "mrkdwn", text: `*Track:*\n${application.track}` },
+          { type: "mrkdwn", text: `*Level:*\n${application.package}` }, // Premium vs Premium Pro
+          {
             type: "mrkdwn",
-            text: `🎉 *Congratulations, ${application.fname}!*\nYour hard work in the *${application.track}* track has paid off.`
-          }
-        },
-        {
-          type: "section",
-          fields: [
-            { type: "mrkdwn", text: `*Track:*\n${application.track}` },
-            { type: "mrkdwn", text: `*Level:*\n${application.package}` }, // Premium vs Premium Pro
-            { type: "mrkdwn", text: `*Cohort:*\n${application.cohort?.name || "Q1 2026"}` },
-            { type: "mrkdwn", text: `*ID:*\n\`${certificate.certificateId}\`` }
-          ]
-        },
-        {
-          type: "actions",
-          elements: [
-            {
-              type: "button",
-              text: { type: "plain_text", text: "🔍 View & Verify" },
-              url: verifyUrl,
-              style: "primary",
-            },
-          ],
-        },
-        {
-          type: "context",
-          elements: [
-            {
-              type: "mrkdwn",
-              text: "💎 This is a verified digital credential. You can add this link to your LinkedIn profile.",
-            },
-          ],
-        },
-      ]
-    );
+            text: `*Cohort:*\n${application.cohort?.name || "Q1 2026"}`,
+          },
+          { type: "mrkdwn", text: `*ID:*\n\`${certificate.certificateId}\`` },
+        ],
+      },
+      {
+        type: "actions",
+        elements: [
+          {
+            type: "button",
+            text: { type: "plain_text", text: "🔍 View & Verify" },
+            url: verifyUrl,
+            style: "primary",
+          },
+        ],
+      },
+      {
+        type: "context",
+        elements: [
+          {
+            type: "mrkdwn",
+            text: "💎 This is a verified digital credential. You can add this link to your LinkedIn profile.",
+          },
+        ],
+      },
+    ]);
   } catch (error) {
     console.error("❌ /my-certificate Error:", error);
-    await sendResponse("❌ *System Error*\nWe couldn't retrieve your certificate. Our engineers have been notified.");
+    await sendResponse(
+      "❌ *System Error*\nWe couldn't retrieve your certificate. Our engineers have been notified.",
+    );
   }
 });
 
@@ -1278,12 +1351,14 @@ slackApp.command("/my-stage", async ({ ack, body, client }) => {
   };
 
   try {
-   
-    const application = await ApplicationForm.findOne({ slackUserId, completed: { $ne: true } }).lean();
+    const application = await ApplicationForm.findOne({
+      slackUserId,
+      completed: { $ne: true },
+    }).lean();
 
     if (!application) {
       return await sendResponse(
-        "🔍 *Account Not Found*\nPlease use `/link-intern` first."
+        "🔍 *Account Not Found*\nPlease use `/link-intern` first.",
       );
     }
 
@@ -1379,7 +1454,7 @@ slackApp.command("/my-stage", async ({ ack, body, client }) => {
             },
           ],
         },
-      ]
+      ],
     );
   } catch (error) {
     console.error("❌ /my-stage Error:", error);
@@ -1396,20 +1471,22 @@ slackApp.command("/mentor", async ({ ack, body, client, say }) => {
     return await client.chat.postEphemeral({
       channel: body.channel_id,
       user: slackUserId,
-      text: "⚠️ Please provide your registered email: `/mentor your@email.com`"
+      text: "⚠️ Please provide your registered email: `/mentor your@email.com`",
     });
   }
 
   try {
-
     // Check if the user exists in our DB and is a mentor/admin
-    const user = await User.findOne({ email, role: { $in: ["super-admin", "admin"] } });
+    const user = await User.findOne({
+      email,
+      role: { $in: ["super-admin", "admin"] },
+    });
 
     if (!user) {
       return await client.chat.postEphemeral({
         channel: body.channel_id,
         user: slackUserId,
-        text: "❌ Access Denied. This email is not registered as a Mentor/Admin in Knownly."
+        text: "❌ Access Denied. This email is not registered as a Mentor/Admin in Knownly.",
       });
     }
 
@@ -1420,15 +1497,14 @@ slackApp.command("/mentor", async ({ ack, body, client, say }) => {
     await client.chat.postEphemeral({
       channel: body.channel_id,
       user: slackUserId,
-      text: `✅ *Verification Successful!* Welcome, Mentor ${user.fname}. You can now use \`/ping-intern\`.`
+      text: `✅ *Verification Successful!* Welcome, Mentor ${user.fname}. You can now use \`/ping-intern\`.`,
     });
-
   } catch (error) {
     console.error("Mentor Auth Error:", error);
     await client.chat.postEphemeral({
       channel: body.channel_id,
       user: slackUserId,
-      text: "⚠️ An error occurred during verification."
+      text: "⚠️ An error occurred during verification.",
     });
   }
 });
@@ -1440,42 +1516,47 @@ slackApp.command("/ping-intern", async ({ ack, body, client }) => {
   const slackUserId = body.user_id;
 
   try {
-
     // 🛡️ SECURITY CHECK: Mentor/Admin only
-    const mentor = await User.findOne({ slackUserId, role: { $in: ["super-admin", "admin"] } });
-    
+    const mentor = await User.findOne({
+      slackUserId,
+      role: { $in: ["super-admin", "admin"] },
+    });
+
     if (!mentor) {
       return await client.chat.postEphemeral({
         channel: body.channel_id,
         user: slackUserId,
-        text: "🚫 *Unauthorized:* This command is for verified Mentors only. Use `/mentor <email>` first."
+        text: "🚫 *Unauthorized:* This command is for verified Mentors only. Use `/mentor <email>` first.",
       });
     }
 
     // 1. System Health Data
-    const dbStatus = mongoose.connection.readyState === 1 ? "✅ Connected" : "❌ Disconnected";
+    const dbStatus =
+      mongoose.connection.readyState === 1 ? "✅ Connected" : "❌ Disconnected";
     const authCheck = await client.auth.test();
     const env = process.env.NODE_ENV || "production";
 
     // 2. Cohort Data Collection
-    const activeCohort = await Cohort.findOne({ isActive: true }).sort({ createdAt: -1 });
+    const activeCohort = await Cohort.findOne({ isActive: true }).sort({
+      createdAt: -1,
+    });
 
     let cohortStatsText = "_No active cohort found._";
 
     if (activeCohort) {
       const [totalInterns, premiumInterns, completions] = await Promise.all([
         ApplicationForm.countDocuments({ cohort: activeCohort._id }),
-        ApplicationForm.countDocuments({ 
-          cohort: activeCohort._id, 
-          package: { $in: ["Premium", "Pro"] } 
+        ApplicationForm.countDocuments({
+          cohort: activeCohort._id,
+          package: { $in: ["Premium", "Pro"] },
         }),
         ApplicationForm.countDocuments({
           cohort: activeCohort._id,
           $or: [{ currentStage: { $gte: 8 } }, { completed: true }],
-        })
+        }),
       ]);
 
-      cohortStatsText = 
+      cohortStatsText =
         `• *Active Cohort:* ${activeCohort.name}\n` +
         `• *Total Interns:* ${totalInterns}\n` +
         `• *💎 Premium:* ${premiumInterns}\n` +
@@ -1489,20 +1570,20 @@ slackApp.command("/ping-intern", async ({ ack, body, client }) => {
     await client.chat.postEphemeral({
       channel: body.channel_id,
       user: slackUserId,
-      text: `*Knownly Bot Diagnostic (Mentor Mode)*\n\n` +
-            `• *Database:* ${dbStatus}\n` +
-            `• *Slack API:* ✅ Online (${authCheck.bot_id})\n` +
-            `• *Environment:* \`${env}\`\n` +
-            `• *Latency:* \`${latency}ms\`\n\n` +
-            `*Cohort Statistics*\n${cohortStatsText}`
+      text:
+        `*Knownly Bot Diagnostic (Mentor Mode)*\n\n` +
+        `• *Database:* ${dbStatus}\n` +
+        `• *Slack API:* ✅ Online (${authCheck.bot_id})\n` +
+        `• *Environment:* \`${env}\`\n` +
+        `• *Latency:* \`${latency}ms\`\n\n` +
+        `*Cohort Statistics*\n${cohortStatsText}`,
     });
-
   } catch (error) {
     console.error("Ping Error:", error);
     await client.chat.postEphemeral({
       channel: body.channel_id,
       user: slackUserId,
-      text: `⚠️ *Diagnostic Failed:* ${error.message}`
+      text: `⚠️ *Diagnostic Failed:* ${error.message}`,
     });
   }
 });
@@ -1513,14 +1594,14 @@ slackApp.view("submission_modal", async ({ ack, body, view, client }) => {
   await ack();
 
   const projectLink = view.state.values.project_block.url_input.value.trim();
-  
+
   // Process in background - don't await
   handleBackgroundSubmission(
     client,
     body.user.id,
     body.user.name,
-    projectLink
-  ).catch(err => {
+    projectLink,
+  ).catch((err) => {
     console.error("Background submission error:", err);
   });
 });
@@ -1573,11 +1654,10 @@ app.get("/verify/:certificateId", async (req, res) => {
     name: `${cert.application.fname} ${cert.application.lname}`,
     track: cert.track,
     issued: cert.issueDate,
-    certificateId:cert.certificateId
+    certificateId: cert.certificateId,
   });
 });
 
 app.get("/", (req, res) => res.send("Knownly API Active."));
 
 const PORT = process.env.PORT || 5000;
-
