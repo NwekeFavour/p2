@@ -956,7 +956,7 @@ slackApp.command("/link-intern", async ({ ack, body, client }) => {
     
     // Custom logic for Subaccount transactions
     if (packageType.includes("Premium")) {
-      welcomeMsg += `💎 *${packageType} Activated!*\nTransaction verified for subaccount. You have priority access.\n\n`;
+      welcomeMsg += `💎 *${packageType} Activated!*\nTransaction verified for Knownly Premium. You have priority access.\n\n`;
     } else {
       welcomeMsg += `🚀 *Free Track Activated!*\nUse \`/submit\` to send your Stage 1 project.\n\n`;
     }
@@ -1170,7 +1170,7 @@ slackApp.command("/my-certificate", async ({ ack, body, client }) => {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: "Certificates are available for *Premium* and *Premium Pro* interns only.\n_Transaction verified for subaccount holders._"
+            text: "Certificates are available for *Premium* and *Premium Pro* interns only.\n_Transaction verified for Knownly Prem holders._"
           }
         }]
       );

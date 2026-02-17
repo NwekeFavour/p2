@@ -56,9 +56,10 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
         app.completed = true;
         app.progress = 100;
         
-        const isPaid = ["Premium", "Premium Pro"].includes(app.package);
+        const isPaid = ["Premium", "Pro"].includes(app.package);
         slackMessage = `🎓 *CONGRATULATIONS ${app.fname}!* 🎉\nAdmin approved your final project!`;
 
+        if (feedback) slackMessage += `\n\n💬 *Admin Feedback:* _"${feedback}"_`;
         if (isPaid) {
           const Certificate = require("../models/certificate");
           const generateCertificateId = require("../utils/generateCertificateId");
@@ -91,21 +92,25 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
           slackMessage += `\n\n👏 You've completed the Free track!`;
         }
       } else if (app.currentStage < 8) {
+        const prevStage = app.currentStage;
         app.currentStage += 1;
-        app.progress = Math.round((app.currentStage / 8) * 100);
-        slackMessage = `🎉 *Congratulations ${app.fname}!* Advanced to Stage ${app.currentStage}.`;
+        app.progress = Math.round((app.currentStage / 8) * 100,);
+        slackMessage = `🎉 *Congratulations ${app.fname}!*\nYour Stage ${prevStage} submission was *Accepted*.`;
+        if (feedback) slackMessage += `\n💬 *Feedback:* _"${feedback}"_`;
+        slackMessage += `\n\n🚀 You've advanced to *Stage ${app.currentStage} with stages progress of ${app.progress}*.`;
       }
       await app.save({ session });
 
     } else if (status === "Needs Revision") {
-      slackMessage = `📝 *Revision Required for ${app.fname}:*\n💬 Feedback: _"${feedback}"_`;
-    }
+slackMessage = `📝 *Revision Required for ${app.fname}:*\n\nYour Stage ${app.currentStage} submission needs some changes.`;
+      slackMessage += `\n💬 *Admin Feedback:* _"${feedback || "No specific feedback provided. Please check requirements."}"_`;    }
 
     // 4. Commit Transaction
     await session.commitTransaction();
     transactionCommitted = true;
     session.endSession();
 
+    try{
     // 5. Post-Transaction Actions (Awaited for Serverless reliability)
     if (slackMessage && app.slackUserId) {
       await sendSlackNotification(app.slackUserId, slackMessage).catch(console.error);
@@ -145,6 +150,10 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
       }
     }
 
+  }catch (externalServiceError) {
+        console.error("External Service Error (Slack/Email):", externalServiceError);
+        // Note: We don't res.status(500) here because the DB update WAS successful
+    }
     return res.status(200).json({ success: true, data: oldSubmission });
 
   } catch (error) {
