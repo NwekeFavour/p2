@@ -35,7 +35,6 @@ const UserSchema = new mongoose.Schema(
     slackUserId: {
       type: String,
       default: null,
-      unique: true, // Prevents one Slack account from linking to multiple emails
       sparse: true, // Allows multiple 'null' values for users not on Slack yet
     },
     assignedCohorts: [{
@@ -45,7 +44,7 @@ const UserSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["super-admin", "admin"],
-      default: "admin",
+      default: "admin", 
       required: true,
     },
     phone: {
