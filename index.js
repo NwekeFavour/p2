@@ -199,19 +199,28 @@ app.use(express.urlencoded({ extended: true }));
 app.post("/api/create-payment", async (req, res) => {
   const { email, amount, metadata } = req.body;
 
-  if (!metadata.cohortId) {
+
+  try {
+        const activeCohort = await Cohort.findOne({ isActive: true }).lean();
+
+  if (!activeCohort) {
     return res
       .status(400)
       .json({ success: false, message: "Missing cohortId" });
   }
 
-  try {
+    const updatedMetadata = {
+      ...metadata,
+      cohortId: activeCohort._id,
+      cohortName: activeCohort.name,
+    };
+
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
       {
         email,
         amount,
-        metadata,
+        metadata: updatedMetadata,
         callback_url: `${process.env.FRONTEND_URL}/payment/callback`,
       },
       {
@@ -232,15 +241,24 @@ app.post("/api/create-payment", async (req, res) => {
 });
 
 app.post("/api/verify-payment", async (req, res) => {
-  const { reference, email } = req.body;
+  const { reference } = req.body;
 
-  if (!reference || !email) {
+  if (!reference) {
     return res
       .status(400)
       .json({ success: false, message: "Reference and email are required." });
   }
 
   try {
+
+    const existing = await ApplicationForm.findOne({
+  paymentReference: reference,
+});
+
+if (existing) {
+  return res.json({ success: true, message: "Already processed" });
+}
+
     const response = await axios.get(
       `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
       {
@@ -249,6 +267,7 @@ app.post("/api/verify-payment", async (req, res) => {
     );
 
     const data = response.data.data;
+    const email = data.customer.email.toLowerCase().trim();
 
     if (data.status !== "success") {
       return res
@@ -339,8 +358,7 @@ app.post("/paystack-webhook", async (req, res) => {
 
   const event = req.body;
   if (event.event === "charge.success") {
-    const ref = event.data.reference;
-    const email = event.data.customer.email;
+    await processPayment(event.data);
   }
 
   res.sendStatus(200);
