@@ -1,5 +1,5 @@
 require("dotenv").config();
-
+const crypto = require("crypto")
 const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
@@ -8,7 +8,9 @@ const {
   Permission,
   ApplicationForm,
 } = require("../models/applicationform");
-
+const { Resend } = require("resend");
+// Initialize Resend with your API Key
+const resend = new Resend(process.env.RESEND_API_KEY);
 // ==================== MIDDLEWARE ====================
 
 // Authentication middleware
@@ -303,6 +305,109 @@ router.patch("/auth/change-password", authenticate, async (req, res) => {
     });
   }
 });
+
+router.post("/auth/forgot-password", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: "Email is required" });
+  }
+
+  try {
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Generate reset token
+    const resetToken = user.getResetPasswordToken();
+    await user.save({ validateBeforeSave: false });
+
+    // Frontend reset link
+    const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password/${resetToken}`;
+
+    // Send email via Resend
+    const { data, error } = await resend.emails.send({
+      from: "Knownly Internship <support@knownly.tech>",
+      to: [user.email],
+      subject: "🔑 Reset Your Knownly Password",
+      html: `
+        <div style="font-family: 'Segoe UI', Roboto, Arial, sans-serif; padding: 40px; background:#f4f7fa;">
+          <div style="max-width: 550px; margin:auto; background:white; border-radius:10px; padding:30px;">
+            <h2 style="text-align:center; color:#111827;">Reset Your Password</h2>
+            <p>Hi <strong>${user.fname} ${user.lname}</strong>,</p>
+            <p>You requested to reset your Knownly account password. Click the button below to set a new password. This link expires in 1 hour.</p>
+            <div style="text-align:center; margin: 30px 0;">
+              <a href="${resetUrl}" style="
+                background:#4f39f6;
+                color:white;
+                text-decoration:none;
+                padding:12px 22px;
+                border-radius:6px;
+                font-weight:600;
+              ">Reset Password</a>
+            </div>
+            <p>If you did not request this, please ignore this email.</p>
+            <p style="font-size:12px; color:#9ca3af;">This is an automated message. Do not reply.</p>
+          </div>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error("Resend error:", error);
+      return res.status(500).json({ success: false, message: "Email could not be sent." });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Password reset link sent to ${user.email}`,
+    });
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    res.status(500).json({ success: false, message: "Error generating password reset link." });
+  }
+});
+
+
+router.post("/auth/reset-password/:token", async (req, res) => {
+  const { token } = req.params;
+  const { newPassword } = req.body;
+
+  if (!newPassword || newPassword.length < 8) {
+    return res.status(400).json({ success:false, message:"Password must be at least 8 characters." });
+  }
+
+  // Hash the token to compare with DB
+  const resetPasswordToken = crypto.createHash("sha256")
+    .update(token)
+    .digest("hex");
+
+  try {
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired token.",
+      });
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    res.json({ success: true, message: "Password reset successfully." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success:false, message:"Error resetting password." });
+  }
+});
+
 
 // ==================== USER MANAGEMENT ROUTES ====================
 

@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-
+const crypto = require("crypto")
 // ==================== USER/ADMIN MODEL ====================
 const UserSchema = new mongoose.Schema(
   {
@@ -22,9 +22,9 @@ const UserSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
       match: [
-        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-        "Please provide a valid email",
-      ],
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        "Please provide a valid email"
+      ]
     },
     password: {
       type: String,
@@ -117,6 +117,20 @@ UserSchema.virtual('myCreatedCohorts', {
 UserSchema.set('toJSON', { virtuals: true });
 UserSchema.set('toObject', { virtuals: true });
 
+UserSchema.methods.getResetPasswordToken = function () {
+  // Create token
+  const resetToken = crypto.randomBytes(20).toString("hex");
+
+  // Hash token and set to DB
+  this.resetPasswordToken = crypto.createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  // Set expire time (1 hour)
+  this.resetPasswordExpire = Date.now() + 60 * 60 * 1000;
+
+  return resetToken;
+};
 // ==================== PERMISSIONS SCHEMA ====================
 const PermissionSchema = new mongoose.Schema({
   role: {
