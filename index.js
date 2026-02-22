@@ -201,7 +201,7 @@ app.post("/api/create-payment", async (req, res) => {
 
 
   try {
-        const activeCohort = await Cohort.findOne({ isActive: true }).lean();
+    const activeCohort = await Cohort.findOne({ isActive: true }).lean();
 
   if (!activeCohort) {
     return res
