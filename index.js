@@ -172,7 +172,6 @@ async function sendPremiumWelcomeLogic(user, email, payRef) {
       return;
     }
 
-    console.log("✅ Premium Welcome Email sent successfully:", data.id);
   } catch (err) {
     console.error("❌ Premium Welcome Email Logic Error:", err);
   }
@@ -348,8 +347,7 @@ app.post("/paystack-webhook", async (req, res) => {
   const body = JSON.stringify(req.body);
 
   if (
-    crypto
-      .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
+    crypto.createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
       .update(body)
       .digest("hex") !== hash
   ) {
@@ -357,12 +355,123 @@ app.post("/paystack-webhook", async (req, res) => {
   }
 
   const event = req.body;
+
   if (event.event === "charge.success") {
-    await processPayment(event.data);
+    const paymentData = event.data;
+    const meta = typeof paymentData.metadata === "string"
+      ? JSON.parse(paymentData.metadata)
+      : paymentData.metadata || {};
+
+    if (meta.upgradeFlow) {
+      // ✅ Upgrade flow
+      await ApplicationForm.findOneAndUpdate(
+        { email: paymentData.customer.email.toLowerCase().trim() },
+        {
+          $set: {
+            package: "Premium",
+            upgradePaymentStatus: "Paid",
+            status: "Approved",
+            upgradeCohortLocked: false,
+            paymentReference: paymentData.reference, // optional
+          },
+        },
+        { new: true }
+      ).then(user =>
+        user && sendPremiumWelcomeLogic(user, user.email, paymentData.reference, { upgrade: true })
+      );
+    } else {
+      // ✅ Regular payment flow
+      await processPayment(paymentData);
+    }
   }
 
   res.sendStatus(200);
 });
+
+app.put("/api/upgrade-to-premium", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: "Email is required" });
+  }
+
+  try {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // 1️⃣ Find user
+    const user = await ApplicationForm.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Application not found" });
+    }
+
+    // 🔒 Already upgraded
+    if (user.package === "Premium" || user.upgradePaymentStatus === "Paid") {
+      return res.json({ success: true, message: "User is already premium" });
+    }
+
+    // 2️⃣ Get active cohort
+    const activeCohort = await Cohort.findOne({ isActive: true }).lean();
+    if (!activeCohort) {
+      return res.status(400).json({ success: false, message: "No active cohort" });
+    }
+
+    // 3️⃣ Build metadata snapshot
+    const metadata = {
+      fname: user.fname,
+      lname: user.lname,
+      phone: user.phone,
+      university: user.university,
+      track: user.track,
+      level: user.level,
+      social: user.social,
+      cohortId: activeCohort._id,
+      cohortName: activeCohort.name,
+      upgradeFlow: true, // mark metadata as upgrade
+    };
+
+    const amount = Number(process.env.PREMIUM_PRICE) * 100;
+
+    // 4️⃣ Initialize Paystack transaction
+    const response = await axios.post(
+      "https://api.paystack.co/transaction/initialize",
+      {
+        email: normalizedEmail,
+        amount,
+        metadata,
+        callback_url: `${process.env.FRONTEND_URL}/payment/callback?upgrade=true`,
+      },
+      {
+        headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
+      }
+    );
+
+    const reference = response.data.data.reference;
+
+    // 5️⃣ Persist upgrade payment state
+    user.upgradePaymentStatus = "Pending";
+    user.upgradePaymentReference = reference;
+    user.upgradePaymentStartedAt = new Date();
+    user.upgradePaymentAmount = amount;
+    user.upgradeCohortLocked = true;
+    user.upgradeCohortLockedAt = new Date();
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      payment_url: response.data.data.authorization_url,
+      reference,
+    });
+  } catch (err) {
+    console.error("Upgrade to premium error:", err.response?.data || err.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to initialize upgrade payment",
+    });
+  }
+});
+
 
 const startServer = async () => {
   try {

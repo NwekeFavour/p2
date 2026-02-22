@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-const crypto = require("crypto")
+const crypto = require("crypto");
 // ==================== USER/ADMIN MODEL ====================
 const UserSchema = new mongoose.Schema(
   {
@@ -9,7 +9,7 @@ const UserSchema = new mongoose.Schema(
       required: [true, "First name is required"],
       trim: true,
     },
-    
+
     lname: {
       type: String,
       required: [true, "Last name is required"],
@@ -21,10 +21,7 @@ const UserSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-        "Please provide a valid email"
-      ]
+      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Please provide a valid email"],
     },
     password: {
       type: String,
@@ -37,14 +34,16 @@ const UserSchema = new mongoose.Schema(
       default: null,
       sparse: true, // Allows multiple 'null' values for users not on Slack yet
     },
-    assignedCohorts: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Cohort", // This must match the string in mongoose.model("Cohort", ...)
-    }],
+    assignedCohorts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Cohort", // This must match the string in mongoose.model("Cohort", ...)
+      },
+    ],
     role: {
       type: String,
       enum: ["super-admin", "admin"],
-      default: "admin", 
+      default: "admin",
       required: true,
     },
     phone: {
@@ -82,7 +81,7 @@ const UserSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Hash password before saving
@@ -105,23 +104,23 @@ UserSchema.virtual("fullName").get(function () {
   return `${this.fname} ${this.lname}`;
 });
 
-
-UserSchema.virtual('myCreatedCohorts', {
-  ref: 'Cohort',
-  localField: '_id',
-  foreignField: 'createdBy'
+UserSchema.virtual("myCreatedCohorts", {
+  ref: "Cohort",
+  localField: "_id",
+  foreignField: "createdBy",
 });
 
 // Set this to ensure virtuals show up in JSON responses
-UserSchema.set('toJSON', { virtuals: true });
-UserSchema.set('toObject', { virtuals: true });
+UserSchema.set("toJSON", { virtuals: true });
+UserSchema.set("toObject", { virtuals: true });
 
 UserSchema.methods.getResetPasswordToken = function () {
   // Create token
   const resetToken = crypto.randomBytes(20).toString("hex");
 
   // Hash token and set to DB
-  this.resetPasswordToken = crypto.createHash("sha256")
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
     .update(resetToken)
     .digest("hex");
 
@@ -207,7 +206,7 @@ const CohortSchema = new mongoose.Schema(
       ref: "User",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Auto-disable cohort if past application deadline
@@ -223,7 +222,6 @@ CohortSchema.methods.canAcceptApplications = function () {
   const now = new Date();
   return this.isActive && now <= this.applicationDeadline;
 };
-
 
 // ==================== APPLICATION FORM SCHEMA (Updated) ====================
 const ApplicationFormSchema = new mongoose.Schema(
@@ -257,13 +255,13 @@ const ApplicationFormSchema = new mongoose.Schema(
     slackUserId: {
       type: String,
       default: null,
-      index: true // Makes searching faster
+      index: true, // Makes searching faster
     },
     currentStage: {
       type: Number,
       default: 1,
       min: 1,
-      max: 8
+      max: 8,
     },
     level: {
       type: String,
@@ -289,6 +287,32 @@ const ApplicationFormSchema = new mongoose.Schema(
     },
     paymentReference: {
       type: String,
+      default: null,
+    },
+    // Upgrade / Free → Premium tracking
+    upgradePaymentStatus: {
+      type: String,
+      enum: ["Pending", "Paid"],
+      default: null, // null means no upgrade attempt
+    },
+    upgradePaymentReference: {
+      type: String,
+      default: null,
+    },
+    upgradePaymentStartedAt: {
+      type: Date,
+      default: null,
+    },
+    upgradePaymentAmount: {
+      type: Number,
+      default: null,
+    },
+    upgradeCohortLocked: {
+      type: Boolean,
+      default: false,
+    },
+    upgradeCohortLockedAt: {
+      type: Date,
       default: null,
     },
     emailSent: {
@@ -329,7 +353,7 @@ const ApplicationFormSchema = new mongoose.Schema(
       default: 0,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Compound index for unique email per cohort
@@ -346,9 +370,25 @@ const defaultPermissions = [
     role: "super-admin",
     permissions: {
       cohorts: { create: true, read: true, update: true, delete: true },
-      applications: { read: true, update: true, approve: true, reject: true, delete: true },
-      users: { create: true, read: true, update: true, delete: true, assignRoles: true },
-      mentorship: { assignInterns: true, viewAssignedInterns: true, updateInternProgress: true },
+      applications: {
+        read: true,
+        update: true,
+        approve: true,
+        reject: true,
+        delete: true,
+      },
+      users: {
+        create: true,
+        read: true,
+        update: true,
+        delete: true,
+        assignRoles: true,
+      },
+      mentorship: {
+        assignInterns: true,
+        viewAssignedInterns: true,
+        updateInternProgress: true,
+      },
       analytics: { viewAll: true, viewOwn: true, export: true },
     },
   },
@@ -356,9 +396,25 @@ const defaultPermissions = [
     role: "admin",
     permissions: {
       cohorts: { create: false, read: true, update: false, delete: false },
-      applications: { read: true, update: true, approve: true, reject: true, delete: true },
-      users: { create: true, read: true, update: false, delete: false, assignRoles: false },
-      mentorship: { assignInterns: true, viewAssignedInterns: true, updateInternProgress: false },
+      applications: {
+        read: true,
+        update: true,
+        approve: true,
+        reject: true,
+        delete: true,
+      },
+      users: {
+        create: true,
+        read: true,
+        update: false,
+        delete: false,
+        assignRoles: false,
+      },
+      mentorship: {
+        assignInterns: true,
+        viewAssignedInterns: true,
+        updateInternProgress: false,
+      },
       analytics: { viewAll: true, viewOwn: true, export: true },
     },
   },
@@ -368,7 +424,10 @@ const defaultPermissions = [
 const User = mongoose.model("User", UserSchema);
 const Permission = mongoose.model("Permission", PermissionSchema);
 const Cohort = mongoose.model("Cohort", CohortSchema);
-const ApplicationForm = mongoose.model("ApplicationForm", ApplicationFormSchema);
+const ApplicationForm = mongoose.model(
+  "ApplicationForm",
+  ApplicationFormSchema,
+);
 
 module.exports = {
   User,

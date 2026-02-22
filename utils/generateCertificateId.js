@@ -6,4 +6,4 @@ function generateCertificateId() {
   return `KNOW-${year}-${random}`;
 }
 
-module.exports = generateCertificateId;
+module.exports = generateCertificateId;   
