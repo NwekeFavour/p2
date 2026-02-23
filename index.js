@@ -405,40 +405,43 @@ app.put("/api/upgrade-to-premium", async (req, res) => {
       return res.status(404).json({ success: false, message: "Application not found" });
     }
 
-    // 🔒 Already upgraded
+    // 🔒 STOP REDIRECT: User is already premium or paid
+    // Changed to 400 so the frontend catch block or error handler stops the redirect
     if (user.package === "Premium" || user.upgradePaymentStatus === "Paid") {
-      return res.json({ success: true, message: "User is already premium" });
+      return res.status(400).json({ 
+        success: false, 
+        isAlreadyPremium: true, 
+        message: "You are already a Premium member!" 
+      });
     }
 
     // 2️⃣ Get active cohort
     const activeCohort = await Cohort.findOne({ isActive: true }).lean();
     if (!activeCohort) {
-      return res.status(400).json({ success: false, message: "No active cohort" });
+      return res.status(400).json({ success: false, message: "No active cohort currently available for upgrade." });
     }
 
     // 3️⃣ Build metadata snapshot
     const metadata = {
       fname: user.fname,
       lname: user.lname,
-      phone: user.phone,
-      university: user.university,
+      userId: user._id, // Adding ID for easier tracking
       track: user.track,
-      level: user.level,
-      social: user.social,
       cohortId: activeCohort._id,
-      cohortName: activeCohort.name,
-      upgradeFlow: true, // mark metadata as upgrade
+      upgradeFlow: true,
     };
 
     const amount = Number(process.env.PREMIUM_PRICE) * 100;
 
     // 4️⃣ Initialize Paystack transaction
+    // Included subaccount logic for proper fund routing
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
       {
         email: normalizedEmail,
         amount,
         metadata,
+        subaccount: process.env.PAYSTACK_SUBACCOUNT_CODE, // Ensure funds go to subaccount
         callback_url: `${process.env.FRONTEND_URL}/payment/callback?upgrade=true`,
       },
       {
@@ -467,7 +470,7 @@ app.put("/api/upgrade-to-premium", async (req, res) => {
     console.error("Upgrade to premium error:", err.response?.data || err.message);
     return res.status(500).json({
       success: false,
-      message: "Failed to initialize upgrade payment",
+      message: "Internal server error during payment initialization",
     });
   }
 });
