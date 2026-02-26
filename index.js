@@ -1,6 +1,7 @@
 require("dotenv").config();
 const { App, ExpressReceiver } = require("@slack/bolt");
 const express = require("express");
+const Certificate = require("./models/certificate");
 const cors = require("cors");
 const NodeCache = require("node-cache");
 const rateLimit = require("express-rate-limit");
@@ -171,18 +172,12 @@ async function sendPremiumWelcomeLogic(user, email, payRef) {
       console.error("❌ Resend API Error:", error);
       return;
     }
-
   } catch (err) {
     console.error("❌ Premium Welcome Email Logic Error:", err);
   }
 }
 
 // Webhook Listener
-
-app.use("/api", express.json());
-
-app.use("/api", apiLimiter);
-
 const corsOptions = {
   origin: [
     "https://knownly.tech",
@@ -193,20 +188,23 @@ const corsOptions = {
   credentials: true,
 };
 app.use(cors(corsOptions));
+app.use("/api", express.json());
+
+app.use("/api", apiLimiter);
+
 app.use(express.urlencoded({ extended: true }));
 
 app.post("/api/create-payment", async (req, res) => {
   const { email, amount, metadata } = req.body;
 
-
   try {
     const activeCohort = await Cohort.findOne({ isActive: true }).lean();
 
-  if (!activeCohort) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Missing cohortId" });
-  }
+    if (!activeCohort) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing cohortId" });
+    }
 
     const updatedMetadata = {
       ...metadata,
@@ -249,14 +247,13 @@ app.post("/api/verify-payment", async (req, res) => {
   }
 
   try {
-
     const existing = await ApplicationForm.findOne({
-  paymentReference: reference,
-});
+      paymentReference: reference,
+    });
 
-if (existing) {
-  return res.json({ success: true, message: "Already processed" });
-}
+    if (existing) {
+      return res.json({ success: true, message: "Already processed" });
+    }
 
     const response = await axios.get(
       `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
@@ -342,57 +339,71 @@ if (existing) {
   }
 });
 
-app.post("/paystack-webhook", async (req, res) => {
-  const hash = req.headers["x-paystack-signature"];
-  const body = JSON.stringify(req.body);
+app.post(
+  "/paystack-webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    const hash = req.headers["x-paystack-signature"];
 
-  if (
-    crypto.createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
-      .update(body)
-      .digest("hex") !== hash
-  ) {
-    return res.status(401).send("Unauthorized");
-  }
-
-  const event = req.body;
-
-  if (event.event === "charge.success") {
-    const paymentData = event.data;
-    const meta = typeof paymentData.metadata === "string"
-      ? JSON.parse(paymentData.metadata)
-      : paymentData.metadata || {};
-
-    if (meta.upgradeFlow) {
-      // ✅ Upgrade flow
-      await ApplicationForm.findOneAndUpdate(
-        { email: paymentData.customer.email.toLowerCase().trim() },
-        {
-          $set: {
-            package: "Premium",
-            upgradePaymentStatus: "Paid",
-            status: "Approved",
-            upgradeCohortLocked: false,
-            paymentReference: paymentData.reference, // optional
-          },
-        },
-        { new: true }
-      ).then(user =>
-        user && sendPremiumWelcomeLogic(user, user.email, paymentData.reference, { upgrade: true })
-      );
-    } else {
-      // ✅ Regular payment flow
-      await processPayment(paymentData);
+    if (
+      crypto
+        .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
+        .update(req.body)
+        .digest("hex") !== hash
+    ) {
+      return res.status(401).send("Unauthorized");
     }
-  }
 
-  res.sendStatus(200);
-});
+    const event = JSON.parse(req.body);
+
+    if (event.event === "charge.success") {
+      const paymentData = event.data;
+      const meta =
+        typeof paymentData.metadata === "string"
+          ? JSON.parse(paymentData.metadata)
+          : paymentData.metadata || {};
+
+      if (meta.upgradeFlow) {
+        // ✅ Upgrade flow
+        await ApplicationForm.findOneAndUpdate(
+          { email: paymentData.customer.email.toLowerCase().trim() },
+          {
+            $set: {
+              package: "Premium",
+              upgradePaymentStatus: "Paid",
+              status: "Approved",
+              upgradeCohortLocked: false,
+              paymentReference: paymentData.reference, // optional
+            },
+          },
+          { new: true },
+        ).then(
+          (user) =>
+            user &&
+            sendPremiumWelcomeLogic(user, user.email, paymentData.reference, {
+              upgrade: true,
+            }),
+        );
+      } else {
+        // ✅ Regular payment flow
+        console.log(
+          "charge.success received via webhook (non-upgrade):",
+          paymentData.reference,
+        );
+      }
+    }
+
+    res.sendStatus(200);
+  },
+);
 
 app.put("/api/upgrade-to-premium", async (req, res) => {
   const { email } = req.body;
 
   if (!email) {
-    return res.status(400).json({ success: false, message: "Email is required" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Email is required" });
   }
 
   try {
@@ -402,23 +413,28 @@ app.put("/api/upgrade-to-premium", async (req, res) => {
     const user = await ApplicationForm.findOne({ email: normalizedEmail });
 
     if (!user) {
-      return res.status(404).json({ success: false, message: "Application not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Application not found" });
     }
 
     // 🔒 STOP REDIRECT: User is already premium or paid
     // Changed to 400 so the frontend catch block or error handler stops the redirect
     if (user.package === "Premium" || user.upgradePaymentStatus === "Paid") {
-      return res.status(400).json({ 
-        success: false, 
-        isAlreadyPremium: true, 
-        message: "You are already a Premium member!" 
+      return res.status(400).json({
+        success: false,
+        isAlreadyPremium: true,
+        message: "You are already a Premium member!",
       });
     }
 
     // 2️⃣ Get active cohort
     const activeCohort = await Cohort.findOne({ isActive: true }).lean();
     if (!activeCohort) {
-      return res.status(400).json({ success: false, message: "No active cohort currently available for upgrade." });
+      return res.status(400).json({
+        success: false,
+        message: "No active cohort currently available for upgrade.",
+      });
     }
 
     // 3️⃣ Build metadata snapshot
@@ -446,7 +462,7 @@ app.put("/api/upgrade-to-premium", async (req, res) => {
       },
       {
         headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
-      }
+      },
     );
 
     const reference = response.data.data.reference;
@@ -467,14 +483,16 @@ app.put("/api/upgrade-to-premium", async (req, res) => {
       reference,
     });
   } catch (err) {
-    console.error("Upgrade to premium error:", err.response?.data || err.message);
+    console.error(
+      "Upgrade to premium error:",
+      err.response?.data || err.message,
+    );
     return res.status(500).json({
       success: false,
       message: "Internal server error during payment initialization",
     });
   }
 });
-
 
 const startServer = async () => {
   try {
@@ -494,54 +512,54 @@ const startServer = async () => {
 startServer();
 
 function auditFrontend(html, stage) {
-  let score = 0;
-  let feedback = "";
-
   const requirements = {
     1: {
-      id: "<main",
+      pattern: /<main[\s>\/]/i,
       msg: "Founder Tip: Use <main> for better SEO and Accessibility.",
     },
     2: {
-      id: 'id="hero"',
+      pattern: /id=["'`{]{0,2}hero/i,
       msg: "Marketing Tip: Every product needs a clear 'hero' section.",
     },
     3: {
-      id: 'type="email"',
+      pattern: /type=["'`{]{0,2}email/i,
       msg: "Growth Tip: You need an email input to capture leads.",
     },
     4: {
-      id: 'id="pricing"',
+      pattern: /id=["'`{]{0,2}pricing/i,
       msg: "Business Tip: You must have a pricing or services section.",
     },
     5: {
-      id: 'id="modal"',
+      pattern: /id=["'`{]{0,2}modal/i,
       msg: "UX Tip: Use a modal for high-priority user actions.",
     },
     6: {
-      id: 'id="theme-switch"',
+      pattern: /id=["'`{]{0,2}theme-switch/i,
       msg: "Polishing: Add a Dark Mode toggle for user comfort.",
     },
     7: {
-      id: 'id="api-data"',
+      pattern: /id=["'`{]{0,2}api-data/i,
       msg: "Scaling: Your page must render data from an external API.",
     },
     8: {
-      id: 'role="navigation"',
+      pattern: /role=["'`{]{0,2}navigation|<nav[\s>\/]/i,
       msg: "Professionalism: Ensure your site has a semantic <nav>.",
     },
   };
 
-  const req = requirements[stage];
-  if (html.includes(req.id)) {
-    score = 100;
-    feedback = `✅ Stage ${stage} requirements met!`;
-  } else {
-    score = 20;
-    feedback = `⚠️ Audit failed: ${req.msg}`;
+  if (!requirements[stage]) {
+    return { score: 0, feedback: `❌ Unknown stage: ${stage}` };
   }
 
-  return { score, feedback };
+  const { pattern, msg } = requirements[stage];
+  const passed = pattern.test(html);
+
+  return {
+    score: passed ? 100 : 20,
+    feedback: passed
+      ? `✅ Stage ${stage} requirements met!`
+      : `⚠️ Audit failed: ${msg}`,
+  };
 }
 
 async function auditBackend(url, headers, html, stage) {
@@ -644,7 +662,13 @@ async function auditBackend(url, headers, html, stage) {
   return { score, feedback };
 }
 
-async function runAutomatedTests(url, track, stage, isPremium = false) {
+async function runAutomatedTests(
+  url,
+  track,
+  stage,
+  isPremium = false,
+  githubUrl = null,
+) {
   let score = 0;
   let feedback = "";
 
@@ -666,7 +690,7 @@ async function runAutomatedTests(url, track, stage, isPremium = false) {
     : `https://${cleanUrl}`;
 
   try {
-    console.log(`🚀 Auditing: ${formattedUrl} | Stage: ${stage}`);
+    // console.log(`🚀 Auditing: ${formattedUrl} | Stage: ${stage}`);
 
     const response = await axios.get(formattedUrl, {
       timeout: 20000,
@@ -694,14 +718,118 @@ async function runAutomatedTests(url, track, stage, isPremium = false) {
     score += 10;
 
     if (track.toLowerCase().includes("frontend")) {
-      return auditFrontend(htmlData, stage);
+      // SPA detection
+      const isSPA =
+        htmlData.includes('id="root"') || htmlData.includes('id="app"');
+
+      if (isSPA && githubUrl) {
+        try {
+          const repoPath = githubUrl
+            .replace("https://github.com/", "")
+            .replace(/\/tree\/[^/]+\/?.*/, "") // strip /tree/main/subfolder if present
+            .replace(/\/$/, "");
+          const repoApiUrl = `https://api.github.com/repos/${repoPath}`;
+          console.log("Attempting GitHub API:", repoApiUrl);
+
+          const repoInfo = await axios.get(repoApiUrl, {
+            timeout: 5000,
+            headers: {
+              ...(process.env.GITHUB_TOKEN && {
+                Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+              }),
+            },
+          });
+          console.log("GitHub API response:", repoInfo.data.default_branch);
+
+          const defaultBranch = repoInfo.data.default_branch; // "main" or "master" or whatever
+
+          const authHeaders = {
+            ...(process.env.GITHUB_TOKEN && {
+              Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+            }),
+          };
+
+          const srcRes = await axios.get(
+            `https://api.github.com/repos/${repoPath}/contents/src?ref=${defaultBranch}`,
+            { timeout: 10000, headers: authHeaders },
+          );
+
+          let allFiles = srcRes.data.filter(
+            (f) =>
+              f.type === "file" &&
+              (f.name.endsWith(".jsx") ||
+                f.name.endsWith(".tsx") ||
+                f.name.endsWith(".js")),
+          );
+
+          try {
+            const compRes = await axios.get(
+              `https://api.github.com/repos/${repoPath}/contents/src/component?ref=${defaultBranch}`,
+              { timeout: 10000, headers: authHeaders },
+            );
+            const compFiles = compRes.data.filter(
+              (f) =>
+                f.type === "file" &&
+                (f.name.endsWith(".jsx") ||
+                  f.name.endsWith(".tsx") ||
+                  f.name.endsWith(".js")),
+            );
+            allFiles = [...allFiles, ...compFiles];
+          } catch (_) {
+            // no components folder, that's fine
+          }
+
+          // READ all files and concatenate
+          let allCode = "";
+          for (const f of allFiles) {
+            try {
+              const fileRes = await axios.get(f.url, {
+                timeout: 10000,
+                headers: authHeaders,
+              });
+              if (fileRes.data.content) {
+                allCode +=
+                  Buffer.from(fileRes.data.content, "base64").toString(
+                    "utf-8",
+                  ) + "\n";
+              }
+            } catch (_) {
+              continue;
+            }
+          }
+
+          if (allCode) {
+            return auditFrontend(allCode.toLowerCase(), stage);
+          }
+
+          return {
+            score: 0,
+            feedback:
+              "⚠️ Could not read GitHub source. Make sure the repo is public and try again.",
+          };
+        } catch (e) {
+          console.log("GitHub outer catch:", e.message); // ADD
+          return {
+            score: 0,
+            feedback: "⚠️ GitHub audit failed. Ensure your repo is public.",
+          };
+        }
+      }
+
+      if (isSPA && !githubUrl) {
+        return {
+          score: 0,
+          feedback:
+            "⚠️ *React/Vue Detected:* Your site renders via JavaScript and can't be audited from the live URL.\n\nPlease resubmit and include your *GitHub repo link* in the second field.",
+        };
+      }
+
+      return auditFrontend(htmlData, stage); // ← ADD this
     }
 
     if (track.toLowerCase().includes("backend")) {
       return auditBackend(formattedUrl, headers, htmlData, stage);
     }
-
-    return { score: 0, feedback: "Awaiting manual mentor verification." };
   } catch (err) {
     console.error("❌ Audit Network Error:", err.message);
 
@@ -800,6 +928,7 @@ async function handleBackgroundSubmission(
   slackUserId,
   slackUserName,
   projectLink,
+  githubUrl,
 ) {
   if (mongoose.connection.readyState !== 1) {
     console.log("DB not connected, attempting to connect...");
@@ -902,6 +1031,7 @@ async function handleBackgroundSubmission(
       application.track,
       application.currentStage,
       application.package === "Premium",
+      githubUrl,
     );
     const isPassing = testResult.score >= 40;
 
@@ -940,7 +1070,6 @@ async function handleBackgroundSubmission(
               `You have successfully completed all stages of the ${application.track} program!\n\n`;
 
             if (isPremium) {
-              const Certificate = require("./models/certificate");
               const generateCertificateId = require("./utils/generateCertificateId");
               const generateCertificatePDF = require("./utils/generateCertificatePDF");
 
@@ -960,11 +1089,10 @@ async function handleBackgroundSubmission(
                 });
 
                 const pdfPath = await generateCertificatePDF({
-                  certificateId,
                   name: `${application.fname} ${application.lname}`,
                   track: application.track,
                   certificateId,
-                  level: cert.package,
+                  level: cert.level,
                 });
                 userMessage +=
                   `💎 *Premium Certificate Issued!*\n` +
@@ -1275,6 +1403,28 @@ slackApp.command("/submit", async ({ ack, body, client }) => {
 
     let guidanceText = "";
     const track = application.track.toLowerCase();
+    const isDevTrack = track.includes("frontend") || track.includes("backend");
+
+    // GitHub URL input (frontend & backend only)
+    if (isDevTrack) {
+      modalBlocks.push({
+        type: "input",
+        block_id: "github_block",
+        label: {
+          type: "plain_text",
+          text: "GitHub Repo URL (required for React/Vue projects)",
+        },
+        optional: true,
+        element: {
+          type: "plain_text_input",
+          action_id: "github_input",
+          placeholder: {
+            type: "plain_text",
+            text: "https://github.com/username/repo",
+          },
+        },
+      });
+    }
 
     if (track.includes("ui/ux")) {
       guidanceText =
@@ -1351,12 +1501,12 @@ slackApp.command("/my-certificate", async ({ ack, body, client }) => {
       .populate("cohort", "name")
       .lean();
 
-    console.log(application.track);
     if (!application) {
       return await sendResponse(
         "🔍 *Account Not Found*\nPlease run `/link-intern your@email.com` first.",
       );
     }
+    console.log(application.track);
 
     // 2. Handle Premium & Premium Pro Logic
     // Included 'Premium Pro' here since they also paid into the subaccount
@@ -1388,7 +1538,6 @@ slackApp.command("/my-certificate", async ({ ack, body, client }) => {
     }
 
     // 4. Retrieve generated certificate
-    const Certificate = require("./models/certificate");
     const certificate = await Certificate.findOne({
       application: application._id,
     }).lean();
@@ -1724,6 +1873,8 @@ slackApp.view("submission_modal", async ({ ack, body, view, client }) => {
   await ack();
 
   const projectLink = view.state.values.project_block.url_input.value.trim();
+  const githubUrl =
+    view.state.values.github_block?.github_input?.value?.trim() || null;
 
   // Process in background - don't await
   handleBackgroundSubmission(
@@ -1731,6 +1882,7 @@ slackApp.view("submission_modal", async ({ ack, body, view, client }) => {
     body.user.id,
     body.user.name,
     projectLink,
+    githubUrl,
   ).catch((err) => {
     console.error("Background submission error:", err);
   });
@@ -1769,8 +1921,6 @@ app.get("/api/health", async (req, res) => {
 });
 
 app.get("/verify/:certificateId", async (req, res) => {
-  const Certificate = require("./models/certificate");
-
   try {
     const cert = await Certificate.findOne({
       certificateId: req.params.certificateId,
@@ -1793,7 +1943,6 @@ app.get("/verify/:certificateId", async (req, res) => {
     res.status(500).json({ valid: false, error: "Server error" });
   }
 });
-
 
 app.get("/", (req, res) => res.send("Knownly API Active."));
 
