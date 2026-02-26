@@ -751,7 +751,7 @@ async function runAutomatedTests(
 
           const srcRes = await axios.get(
             `https://api.github.com/repos/${repoPath}/contents/src?ref=${defaultBranch}`,
-            { timeout: 10000, headers: authHeaders },
+            { timeout: 30000, headers: authHeaders },
           );
 
           let allFiles = srcRes.data.filter(
