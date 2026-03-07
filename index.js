@@ -237,6 +237,117 @@ app.post("/api/create-payment", async (req, res) => {
   }
 });
 
+app.post("/api/hire-inquiry", async (req, res) => {
+  const { name, email, role, message } = req.body;
+
+  if (!name || !email || !role || !message) {
+    return res
+      .status(400)
+      .json({ success: false, message: "All fields are required." });
+  }
+
+  try {
+    const { error } = await resend.emails.send({
+      from: "Knownly <support@knownly.tech>",
+      to: ["support@knownly.tech"], // your inbox
+      replyTo: email,
+      subject: `🤝 New Hire Inquiry from ${name}`,
+      html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f4f7fa; font-family: 'Segoe UI', Roboto, Arial, sans-serif;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f7fa; padding: 40px 16px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 560px; background: #ffffff; border-radius: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); padding: 36px 32px;">
+                
+                <!-- Logo -->
+                <tr>
+                  <td align="center" style="padding-bottom: 24px;">
+                    <span style="display: block; font-size: 28px; font-weight: 800; letter-spacing: -1px; color: #111827;">KNOWNLY</span>
+                    <span style="display: block; font-size: 10px; font-weight: 700; letter-spacing: 4px; color: #4f39f6; text-transform: uppercase; margin-top: 4px;">INTERNSHIPS</span>
+                  </td>
+                </tr>
+
+                <!-- Title -->
+                <tr>
+                  <td style="font-size: 16px; color: #111827; padding-bottom: 8px;">
+                    📬 <strong>New Hire Inquiry Received</strong>
+                  </td>
+                </tr>
+
+                <!-- From Card -->
+                <tr>
+                  <td style="background: linear-gradient(135deg, #4f39f6, #4f39e1); border-radius: 12px; padding: 22px 24px; margin: 24px 0; color: #ffffff;">
+                    <p style="margin: 0; font-size: 14px; opacity: 0.9; color: #fff;">From</p>
+                    <p style="margin: 6px 0 0; font-size: 20px; font-weight: 700; color: #fff;">${name}</p>
+                    <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.85; color: #fff;">${email}</p>
+                  </td>
+                </tr>
+
+                <!-- Spacer -->
+                <tr><td style="height: 16px;"></td></tr>
+
+                <!-- Role -->
+                <tr>
+                  <td style="background-color: #f8fafc; border-left: 4px solid #4f39f6; padding: 16px 18px; border-radius: 8px;">
+                    <p style="margin: 0; font-size: 14px; color: #0f172a; font-weight: 600;">Role They're Hiring For</p>
+                    <p style="margin: 8px 0 0; font-size: 15px; color: #334155;">${role}</p>
+                  </td>
+                </tr>
+
+                <!-- Spacer -->
+                <tr><td style="height: 16px;"></td></tr>
+
+                <!-- Message -->
+                <tr>
+                  <td style="background-color: #f8fafc; border-left: 4px solid #4f39f6; padding: 16px 18px; border-radius: 8px;">
+                    <p style="margin: 0; font-size: 14px; color: #0f172a; font-weight: 600;">Message</p>
+                    <p style="margin: 8px 0 0; font-size: 15px; color: #334155; line-height: 1.6;">${message}</p>
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="font-size: 14px; color: #6b7280; padding-top: 24px;">
+                    Reply directly to this email to respond to ${name}.
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size: 15px; color: #111827; padding-top: 12px;">
+                    <strong>The Knownly Team</strong>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+      `,
+    });
+
+    if (error) {
+      console.error("❌ Hire inquiry email error:", error);
+      return res
+        .status(500)
+        .json({ success: false, message: "Failed to send inquiry." });
+    }
+
+    return res.json({ success: true, message: "Inquiry sent successfully!" });
+  } catch (err) {
+    console.error("❌ Hire inquiry error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error." });
+  }
+});
+
 app.post("/api/verify-payment", async (req, res) => {
   const { reference } = req.body;
 
@@ -602,15 +713,19 @@ async function auditBackend(url, headers, html, stage) {
       break;
 
     case 4:
-      const data = typeof html === "string" ? JSON.parse(html) : html;
-      const isArray =
-        Array.isArray(data) || (data.data && Array.isArray(data.data));
-      score = isArray ? 100 : 30;
-      feedback = isArray
-        ? "📊 Scalability: Your API correctly handles collections (Arrays)."
-        : "❌ Structure: API should return a list of items for this stage.";
+      try {
+        const data = typeof html === "string" ? JSON.parse(html) : html;
+        const isArray =
+          Array.isArray(data) || (data.data && Array.isArray(data.data));
+        score = isArray ? 100 : 30;
+        feedback = isArray
+          ? "📊 Scalability: Your API correctly handles collections (Arrays)."
+          : "❌ Structure: API should return a list of items for this stage.";
+      } catch {
+        score = 0;
+        feedback = "❌ Structure: API must return valid JSON for this stage.";
+      }
       break;
-
     case 5:
       try {
         const res = await axios.post(
@@ -1493,7 +1608,7 @@ slackApp.command("/my-certificate", async ({ ack, body, client }) => {
       });
     }
   };
-
+ 
   try {
     // 1. REMOVED { completed: { $ne: true } } so we can actually find finished interns
     const application = await ApplicationForm.findOne({ slackUserId })

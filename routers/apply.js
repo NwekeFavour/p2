@@ -224,7 +224,7 @@ router.get("/apply", async (req, res) => {
     const { package: pkg, cohort, status } = req.query;
 
     let query = {};
-    if (pkg) query.package = pkg.toLowerCase();
+    if (pkg) query.package = pkg.charAt(0).toUpperCase() + pkg.slice(1).toLowerCase(); // ✅ fixes casing
     if (cohort) query.cohort = cohort;
     if (status) query.status = status;
 
@@ -235,7 +235,7 @@ router.get("/apply", async (req, res) => {
 
     res.status(200).json({
       success: true,
-      count: applications.length,
+      totalCount: applications.length,
       data: applications,
     });
   } catch (error) {
@@ -244,7 +244,7 @@ router.get("/apply", async (req, res) => {
   }
 });
 
-// @desc Delete applicant by ID
+// @desc Delete applicant by ID  
 router.delete(
   "/:id",
   protect,
@@ -406,6 +406,7 @@ router.post("/apply", async (req, res) => {
       track,
       level,
       package: pkg,
+      ref,
     } = req.body;
 
     const cohort = await Cohort.findOne({ isActive: true });
@@ -482,35 +483,35 @@ router.post("/apply", async (req, res) => {
 
               <div style="text-align: center; margin-bottom: 25px;">
 
-  <!-- Brand Name -->
-  <div style="line-height: 1;">
+                <!-- Brand Name -->
+                <div style="line-height: 1;">
 
-    <span style="
-      display: block;
-      font-size: 28px;
-      font-weight: 800;
-      letter-spacing: -1px;
-      color: #111827;
-    ">
-      KNOWNLY
-    </span>
+                  <span style="
+                    display: block;
+                    font-size: 28px;
+                    font-weight: 800;
+                    letter-spacing: -1px;
+                    color: #111827;
+                  ">
+                    KNOWNLY
+                  </span>
 
-    <!-- Sub-text -->
-    <span style="
-      display: block;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 4px;
-      color: #4f39f6;
-      text-transform: uppercase;
-      margin-top: 4px;
-    ">
-      INTERNSHIPS
-    </span>
+                  <!-- Sub-text -->
+                  <span style="
+                    display: block;
+                    font-size: 10px;
+                    font-weight: 700;
+                    letter-spacing: 4px;
+                    color: #4f39f6;
+                    text-transform: uppercase;
+                    margin-top: 4px;
+                  ">
+                    INTERNSHIPS
+                  </span>
 
-  </div>
+                </div>
 
-</div>
+              </div>
 
 
 
@@ -633,6 +634,21 @@ router.post("/apply", async (req, res) => {
 
     // 3. Handle PREMIUM (Subaccount Path)
     if (pkg === "Premium") {
+      await ApplicationForm.create({
+        cohort: cohort._id,
+        email,
+        fname,
+        lname,
+        package: "Premium",
+        phone,
+        level,
+        track,
+        social,
+        university,
+        ref: ref || null,
+        sendAt: new Date(Date.now() + 5 * 60 * 1000),
+      });
+
       // CRITICAL: We await the email so Vercel doesn't kill the task
       await triggerWelcomeEmail(cohort.name);
 
@@ -655,6 +671,7 @@ router.post("/apply", async (req, res) => {
       track,
       social,
       university,
+      ref: ref || null,
       sendAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 

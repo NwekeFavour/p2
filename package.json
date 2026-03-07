@@ -23,6 +23,7 @@
     "fetch-retry": "^6.0.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "mongodb": "^7.1.0",
     "mongoose": "^8.19.1",
     "node-cache": "^5.1.2",
     "node-fetch": "^2.7.0",
