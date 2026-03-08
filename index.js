@@ -377,6 +377,13 @@ app.post("/api/verify-payment", async (req, res) => {
     const email = data.customer.email.toLowerCase().trim();
 
     if (data.status !== "success") {
+      await ApplicationForm.deleteOne({
+        email: email.toLowerCase().trim(),
+        package: "Premium",
+        status: { $in: ["Pending", "AwaitingPayment"] },
+        paymentReference: { $exists: false },
+      });
+
       return res
         .status(400)
         .json({ success: false, message: "Payment was not successful." });
@@ -1323,7 +1330,13 @@ slackApp.command("/link-intern", async ({ ack, body, client }) => {
     }
 
     // 1. Fetch the NEW application by email
-    const application = await ApplicationForm.findOne({ email: emailInput });
+    const application = await ApplicationForm.findOne({
+      email: emailInput,
+      $or: [
+        { package: { $in: ["Free"] } },
+        { package: "Premium", status: "Approved" },
+      ],
+    });
 
     if (!application) {
       return await sendResponse(
@@ -1608,7 +1621,7 @@ slackApp.command("/my-certificate", async ({ ack, body, client }) => {
       });
     }
   };
- 
+
   try {
     // 1. REMOVED { completed: { $ne: true } } so we can actually find finished interns
     const application = await ApplicationForm.findOne({ slackUserId })
